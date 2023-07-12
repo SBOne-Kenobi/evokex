@@ -22,6 +22,7 @@ package org.evosuite;
 
 import org.evosuite.classpath.ClassPathHacker;
 import org.evosuite.junit.writer.TestSuiteWriterUtils;
+import org.evosuite.kex.KexService;
 import org.evosuite.result.TestGenerationResult;
 import org.evosuite.result.TestGenerationResultBuilder;
 import org.evosuite.rmi.ClientServices;
@@ -70,6 +71,7 @@ public class ClientProcess {
         JDKClassResetter.init();
         Sandbox.setCheckForInitialization(Properties.SANDBOX);
         MockFramework.enable();
+        KexService.getInstance();
 
         if (TestSuiteWriterUtils.needToUseAgent() && (Properties.JUNIT_CHECK == Properties.JUnitCheckValues.TRUE || Properties.JUNIT_CHECK == Properties.JUnitCheckValues.OPTIONAL)) {
             initializeToolJar();
