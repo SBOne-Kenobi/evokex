@@ -29,6 +29,14 @@
 
 	<dependencies>
 
+        <!-- Kex Modules -->
+
+        <dependency>
+            <groupId>org.vorpal.research</groupId>
+            <artifactId>kex-runner</artifactId>
+            <version>0.0.1</version>
+        </dependency>
+
 		<!-- EvoSuite Modules -->
 
 		<dependency>
