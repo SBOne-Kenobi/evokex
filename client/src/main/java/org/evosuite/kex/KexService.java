@@ -8,8 +8,15 @@ import org.evosuite.testcase.execution.ExecutionResult;
 import org.evosuite.testcase.execution.TestCaseExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.vorpal.research.kex.config.FileConfig;
+import org.vorpal.research.kex.config.GlobalConfig;
+import org.vorpal.research.kex.config.GlobalConfigKt;
+import org.vorpal.research.kex.config.RuntimeConfig;
 import org.vorpal.research.kex.launcher.ConcolicLauncher;
+import org.vorpal.research.kex.util.RtKt;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -24,15 +31,24 @@ public class KexService {
 
     private final KexClassLoader loader;
 
-    private KexService(List<String> classPaths, String targetName) {
+    private KexService(List<String> classPaths, String targetName, URL[] instrumented) {
         launcher = new ConcolicLauncher(classPaths, targetName);
-        loader = new KexClassLoader(launcher.getContext().getLoader());
+        loader = new KexClassLoader(instrumented);
     }
 
     public static KexService getInstance() {
         if (instance == null) {
+            GlobalConfig kexConfig = GlobalConfigKt.getKexConfig();
+            kexConfig.initialize(RuntimeConfig.INSTANCE, new FileConfig("kex.ini"));
+            URL instrumentedDir;
+            try {
+                instrumentedDir = RtKt.getInstrumentedCodeDirectory(kexConfig).toUri().toURL();
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
+
             String[] classPaths = ClassPathHandler.getInstance().getClassPathElementsForTargetProject();
-            instance = new KexService(Arrays.asList(classPaths), Properties.TARGET_CLASS);
+            instance = new KexService(Arrays.asList(classPaths), Properties.TARGET_CLASS, new URL[]{instrumentedDir});
         }
         return instance;
     }

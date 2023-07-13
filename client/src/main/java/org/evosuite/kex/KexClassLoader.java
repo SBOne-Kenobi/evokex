@@ -1,26 +1,24 @@
 package org.evosuite.kex;
 
-public class KexClassLoader extends ClassLoader {
+import java.net.URL;
+import java.net.URLClassLoader;
 
-    private final ClassLoader instrumentedLoader;
+public class KexClassLoader extends URLClassLoader {
+    private final ClassLoader loader;
 
-    public KexClassLoader(ClassLoader instrumentedLoader) {
-        super(KexClassLoader.class.getClassLoader());
+    public KexClassLoader(URL[] urls) {
+        super(urls, null);
 
-        this.instrumentedLoader = instrumentedLoader;
+        this.loader = KexClassLoader.class.getClassLoader();
     }
 
     @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-        Class<?> result = findLoadedClass(name);
-        if (result != null) {
-            return result;
-        }
+    protected Class<?> findClass(String s) throws ClassNotFoundException {
         try {
-            result = this.instrumentedLoader.loadClass(name);
+            return super.findClass(s);
         } catch (ClassNotFoundException e) {
-            result = getParent().loadClass(name);
+            return loader.loadClass(s);
         }
-        return result;
     }
+
 }

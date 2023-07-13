@@ -115,7 +115,7 @@ public class Properties {
 
 	@Parameter(key = "reset_static_final_fields", group = "Test Creation", description = "Remove the static modifier in target fields")
 	public static boolean RESET_STATIC_FINAL_FIELDS = true;
-	
+
 	@Parameter(key = "reset_static_field_gets", group = "Test Creation", description = "Call static constructors also after each static field was read")
 	public static boolean RESET_STATIC_FIELD_GETS = false;
 
@@ -322,7 +322,7 @@ public class Properties {
 	// MOSA PROPERTIES
 	public enum RankingType {
 		// Preference sorting is the ranking strategy proposed in
-		PREFERENCE_SORTING, 
+		PREFERENCE_SORTING,
 		FAST_NON_DOMINATED_SORTING
 	}
 
@@ -334,22 +334,22 @@ public class Properties {
 	  SINGLE,
 	  SINGLE_AVG
 	}
-	
+
 	@Parameter(key = "map_elites_choice", group = "Search Algorithm", description = "Selection of chromosome branches to mutate")
     public static MapElitesChoice MAP_ELITES_CHOICE = MapElitesChoice.SINGLE_AVG;
-	
+
 	@Parameter(key = "map_elites_mosa_mutations", group = "Search Algorithm", description = "Enable mosa style mutations for map elites")
 	public static boolean MAP_ELITES_MOSA_MUTATIONS = true;
-	
+
 	@Parameter(key = "map_elites_random", group = "Search Algorithm", description = "Probability used for adding new chromosomes")
     @DoubleValue(min = 0.0, max = 1.0)
     public static double MAP_ELITES_RANDOM = 0.5;
-	
+
 	@Parameter(key = "map_elites_ignore_features", group = "Search Algorithm", description = "Enable this to disable feature based mapping")
     public static boolean MAP_ELITES_IGNORE_FEATURES = false;
-	
+
 	@Parameter(key = "algorithm", group = "Search Algorithm", description = "Search algorithm")
-	public static Algorithm ALGORITHM = Algorithm.DYNAMOSA;
+	public static Algorithm ALGORITHM = Algorithm.CELLULAR_GA;
 
 	/** Different models of neighbourhoods in the Cellular GA **/
 	public enum CGA_Models{
@@ -387,7 +387,7 @@ public class Properties {
 
 	@Parameter(key = "dse_probability", group = "DSE", description = "Probability used to specify when to use DSE instead of regular LS when LS is applied")
     @DoubleValue(min = 0.0, max = 1.0)
-	public static double DSE_PROBABILITY = 0.5;
+    public static double DSE_PROBABILITY = 1.0;
 
 	@Parameter(key = "dse_constraint_solver_timeout_millis", group = "DSE", description = "Maximum number of solving time for Constraint solver in milliseconds")
 	public static long DSE_CONSTRAINT_SOLVER_TIMEOUT_MILLIS = 1000;
@@ -441,7 +441,7 @@ public class Properties {
 	// --------- LS ---------
 
 	@Parameter(key = "local_search_rate", group = "Local Search", description = "Apply local search at every X generation")
-	public static int LOCAL_SEARCH_RATE = -1;
+	public static int LOCAL_SEARCH_RATE = 1;
 
 	@Parameter(key = "local_search_probability", group = "Local Search", description = "Probability of applying local search at every X generation")
     @DoubleValue(min = 0.0, max = 1.0)
@@ -1091,7 +1091,7 @@ public class Properties {
 
 	@Parameter(key = "new_statistics", group = "Output", description = "Use the new statistics backend on the master")
 	public static boolean NEW_STATISTICS = true;
-	
+
 	@Parameter(key = "ignore_missing_statistics", group = "Output", description = "Return an empty string for missing output variables")
 	public static boolean IGNORE_MISSING_STATISTICS = false;
 
@@ -1224,7 +1224,7 @@ public class Properties {
 
 	@Parameter(key = "instrument_method_calls", description = "Instrument methods calls")
 	public static boolean INSTRUMENT_METHOD_CALLS = false;
-	
+
 	@Parameter(key = "instrument_libraries", description = "Instrument the libraries used by the project under test")
 	public static boolean INSTRUMENT_LIBRARIES = false;
 
@@ -1371,7 +1371,7 @@ public class Properties {
 	@Parameter(key = "replace_gui", group = "Test Execution", description = "Replace javax.swing with a smart stub/mock")
 	public static boolean REPLACE_GUI = false;
 
-	
+
     @Parameter(key = "max_started_threads", group = "Test Execution", description = "Max number of threads allowed to be started in each test")
     public static int MAX_STARTED_THREADS = RuntimeSettings.maxNumberOfThreads;
 
@@ -1492,7 +1492,7 @@ public class Properties {
 
 	@Parameter(key = "exclude_ibranches_cut", group = "Runtime", description = "Exclude ibranches in the cut, to speed up ibranch as secondary criterion")
 	public static boolean EXCLUDE_IBRANCHES_CUT = false;
-	
+
 	public enum Strategy {
 	    ONEBRANCH, EVOSUITE, RANDOM, RANDOM_FIXED, ENTBUG, MOSUITE, DSE, NOVELTY, MAP_ELITES
 	}
@@ -1520,7 +1520,7 @@ public class Properties {
 
 
 	@Parameter(key = "client_on_thread", group = "Runtime", description = "Run client process on same JVM of master in separate thread. To be used only for debugging purposes")
-	public static volatile boolean CLIENT_ON_THREAD = false;
+	public static volatile boolean CLIENT_ON_THREAD = true;
 
 
 	@Parameter(key = "is_running_a_system_test", group = "Runtime", description = "Specify that a system test is running. To be used only for debugging purposes")
@@ -1542,7 +1542,7 @@ public class Properties {
 
 	@Parameter(key = "eclipse_plugin", group = "Plugin", description = "Running plugin for experiments. Use EvoSuiteTest annotation and decorate generated tests with (checked = false).")
 	public static boolean ECLIPSE_PLUGIN = false;
-	
+
 	// Added - fix for @NotNull annotations issue on evo mailing list
 
 	@Parameter(key = "honour_data_annotations", group = "Runtime", description = "Allows EvoSuite to generate tests with or without honouring the parameter data annotations")
@@ -2256,9 +2256,9 @@ public class Properties {
 	}
 
 	/**
-	 * Returns the target class. It required, it also executes the 
-	 * <clinit> class initialiser of the target class 
-	 * 
+	 * Returns the target class. It required, it also executes the
+	 * <clinit> class initialiser of the target class
+	 *
 	 * @return the initialised target class
 	 */
 	public static Class<?> getInitializedTargetClass() {
@@ -2266,18 +2266,18 @@ public class Properties {
 	}
 
 	/**
-	 * Returns the target class. If the class is not yet initialised, 
-	 * this method *does not* execute the <clinit> class initialiser of the target class. 
-	 * This method explicitly states that the <clinit> method is not executed 
+	 * Returns the target class. If the class is not yet initialised,
+	 * this method *does not* execute the <clinit> class initialiser of the target class.
+	 * This method explicitly states that the <clinit> method is not executed
 	 * because of this method.
-	 * 
+	 *
 	 * @return the target class. The target class could be uninitialised
 	 */
 	public static Class<?> getTargetClassAndDontInitialise() {
 		return getTargetClass(false);
 	}
 
-	
+
 	/**
 	 * Returns true if there is a loaded target class object.
 	 * Warning: resetTargetClass() does not load the class, only
@@ -2300,7 +2300,7 @@ public class Properties {
 						.equals(TARGET_CLASS))
 			return TARGET_CLASS_INSTANCE;
 
-		if (TARGET_CLASS_INSTANCE!=null) { 
+		if (TARGET_CLASS_INSTANCE!=null) {
 			TARGET_CLASS_INSTANCE = null;
 		}
 
