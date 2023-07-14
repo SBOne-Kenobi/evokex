@@ -22,6 +22,7 @@ package org.evosuite.symbolic.dse;
 import org.evosuite.Properties;
 import org.evosuite.ga.localsearch.LocalSearchBudget;
 import org.evosuite.ga.localsearch.LocalSearchObjective;
+import org.evosuite.kex.KexService;
 import org.evosuite.symbolic.BranchCondition;
 import org.evosuite.symbolic.PathCondition;
 import org.evosuite.symbolic.expr.Constraint;
@@ -92,6 +93,7 @@ public class DSETestGenerator {
         test.clone(); // I am not sure what is the purpose of this
 
         DefaultTestCase clone_test_case = (DefaultTestCase) test.getTestCase().clone();
+        KexService.execute(clone_test_case.clone());
         final PathCondition collectedPathCondition = new ConcolicExecutorImpl().execute(clone_test_case);
 
         logger.info("Done concolic execution");
