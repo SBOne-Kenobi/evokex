@@ -12,6 +12,9 @@ import org.vorpal.research.kex.parameters.Parameters
 import org.vorpal.research.kex.state.predicate.Predicate
 import org.vorpal.research.kex.state.predicate.state
 import org.vorpal.research.kex.state.term.Term
+import org.vorpal.research.kex.state.term.TermBuilder.Terms.field
+import org.vorpal.research.kex.state.term.TermBuilder.Terms.load
+import org.vorpal.research.kex.state.term.TermBuilder.Terms.staticRef
 import org.vorpal.research.kex.state.term.term
 import org.vorpal.research.kex.trace.symbolic.InstructionTraceCollector
 import org.vorpal.research.kex.trace.symbolic.StateClause
@@ -31,6 +34,8 @@ import org.vorpal.research.kfg.ir.value.instruction.Instruction
 import org.vorpal.research.kfg.ir.value.instruction.InstructionBuilder
 import org.vorpal.research.kthelper.assert.unreachable
 import ru.spbstu.wheels.runIf
+import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Method
 
 
@@ -71,24 +76,27 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         setCurrentCollector(collector)
     }
 
-    private fun handleField(statement: FieldStatement, scope: Scope) {
-        val field = statement.field.kfgField
-        val owner = statement.source?.let { mkValue(it) }
-
-        val name = statement.returnValue.name
+    private fun buildField(field: Field, source: Value?, name: String): Pair<Instruction, Term> {
         val instruction = if (field.isStatic) {
             field.load(name)
         } else {
-            owner!!.load(name, field)
+            source!!.load(name, field)
         }
 
+        val ownerTerm = source?.let { mkTerm(it) }
+        val actualOwner = ownerTerm ?: staticRef(field.klass)
+        val term = actualOwner.field(field.type.kexType, field.name).load()
+
+        return instruction to term
+    }
+
+    private fun handleField(statement: FieldStatement, scope: Scope) {
+        val field = statement.field.kfgField
+        val source = statement.source?.let { mkValue(it) }
+
+        val (instruction, loadTerm) = buildField(field, source, statement.returnValue.name)
         val valueTerm = register(statement.returnValue, instruction)
-        val ownerTerm = owner?.let { mkTerm(it) }
-
-        val predicate = state {
-            val actualOwner = ownerTerm ?: staticRef(field.klass)
-            valueTerm equality actualOwner.field(field.type.kexType, field.name).load()
-        }
+        val predicate = state { valueTerm equality loadTerm }
 
         postProcess(instruction, predicate)
     }
@@ -98,7 +106,17 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     }
 
     private fun handleConstructor(statement: ConstructorStatement, scope: Scope) {
-        TODO()
+        val constructor = statement.constructor.constructor.kfgMethod
+        val args = statement.parameterReferences.map { mkValue(it) }
+
+        val newInst = constructor.klass.new(statement.returnValue.name)
+        val newTerm = register(statement.returnValue, newInst)
+        val predicate = state {
+            newTerm.new()
+        }
+        postProcess(newInst, predicate)
+
+        collector.lastCall = buildCall(constructor, null, newInst, args, scope)
     }
 
     private fun handleMethod(statement: MethodStatement, scope: Scope) {
@@ -106,23 +124,33 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         val callee = statement.callee?.let { mkValue(it) }
         val args = statement.parameterReferences.map { mkValue(it) }
 
-        val name = statement.returnValue.name
-        val isVoid = statement.returnType == Void.TYPE
+        collector.lastCall = buildCall(method, statement.returnValue, callee, args, scope)
+    }
+
+    private fun buildCall(
+        method: org.vorpal.research.kfg.ir.Method,
+        returnValue: VariableReference?,
+        callee: Value?,
+        args: List<Value>,
+        scope: Scope
+    ): SymbolicTraceBuilder.Call {
+        val name = returnValue?.name
+        val isVoid = returnValue?.type?.let { it == Void.TYPE } ?: true
         val instruction = when {
             method.isStatic && isVoid -> method.staticCall(method.klass, args)
-            method.isStatic -> method.staticCall(method.klass, name, args)
+            method.isStatic -> method.staticCall(method.klass, name!!, args)
 
             method.isConstructor && isVoid -> method.specialCall(method.klass, callee!!, args)
-            method.isConstructor -> method.specialCall(method.klass, name, callee!!, args)
+            method.isConstructor -> method.specialCall(method.klass, name!!, callee!!, args)
 
             method.klass.isInterface && isVoid -> method.interfaceCall(method.klass, callee!!, args)
-            method.klass.isInterface -> method.interfaceCall(method.klass, name, callee!!, args)
+            method.klass.isInterface -> method.interfaceCall(method.klass, name!!, callee!!, args)
 
             isVoid -> method.virtualCall(method.klass, callee!!, args)
-            else -> method.virtualCall(method.klass, name, callee!!, args)
+            else -> method.virtualCall(method.klass, name!!, callee!!, args)
         }
 
-        val valueTerm = runIf(!isVoid) { register(statement.returnValue, instruction) }
+        val valueTerm = runIf(!isVoid) { register(returnValue!!, instruction) }
         val calleeTerm = callee?.let { mkTerm(it) }
         val argsTerm = args.map { mkTerm(it) }
 
@@ -132,7 +160,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
             valueTerm?.call(callTerm) ?: call(callTerm)
         }
 
-        collector.lastCall = SymbolicTraceBuilder.Call(
+        return SymbolicTraceBuilder.Call(
             instruction, method,
             valueTerm?.let { instruction to it },
             Parameters(calleeTerm, argsTerm), predicate
@@ -234,7 +262,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     }
 
     private fun handlePrimitive(statement: PrimitiveStatement<*>, scope: Scope) {
-        // TODO: handle non-primitives
+        // TODO: handle "non-primitives" for kex
         val value = buildValue(statement.value, statement.returnClass)
         register(statement.returnValue, value)
     }
@@ -255,14 +283,36 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     private fun mkValue(ref: VariableReference): Value =
         valueCache.getOrElse(ref) { mkNewValue(ref) }
 
-    private fun mkNewValue(ref: VariableReference): Value = when (ref) {
-        is NullReference -> values.nullConstant
-        is ConstantValue -> buildValue(ref.value, ref.genericClass.rawClass)
-        is ArrayReference -> TODO()
-        is ArrayIndex -> TODO()
-        is FieldReference -> TODO()
-        else -> TODO()
-    }.also { valueCache[ref] = it }
+    private fun mkNewValue(ref: VariableReference): Value {
+        var needCaching = true
+
+        val value = when (ref) {
+            is NullReference -> values.nullConstant
+            is ConstantValue -> buildValue(ref.value, ref.genericClass.rawClass)
+            is ArrayReference -> TODO()
+            is ArrayIndex -> TODO()
+            is FieldReference -> {
+                needCaching = false
+
+                val field = ref.field.kfgField
+                val source = ref.source?.let { mkValue(it) }
+
+                val (instruction, loadTerm) = buildField(field, source, TMP_NAME)
+                val valueTerm = mkNewTerm(instruction)
+                val predicate = state { valueTerm equality loadTerm }
+                postProcess(instruction, predicate)
+
+                instruction
+            }
+
+            else -> TODO()
+        }
+
+        if (needCaching) {
+            valueCache[ref] = value
+        }
+        return value
+    }
 
     private fun buildValue(value: Any?, clazz: Class<*>): Value = when (clazz) {
         Boolean::class.java -> values.getBool(value as Boolean)
@@ -279,11 +329,19 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         else -> unreachable { }
     }
 
-    private val Method.kfgMethod
+    private val Executable.kfgMethod
         get() = cm[declaringClass.name].getMethod(
-            name, MethodDescriptor(
+            if (this is Constructor<*>) {
+                "<init>"
+            } else {
+                name
+            },
+            MethodDescriptor(
                 parameterTypes.map(types::get),
-                if (returnType == Void.TYPE) { types.voidType } else { types.get(returnType) }
+                when {
+                    this is Method && returnType != Void.TYPE -> types.get(returnType)
+                    else -> types.voidType
+                }
             )
         )
 
@@ -307,6 +365,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     override fun afterStatement(statement: Statement, scope: Scope, exception: Throwable?) {
         setCurrentCollector(emptyCollector)
 
+        // TODO: handle exception
         collector.lastCall?.let {
             postProcess(it.call, it.predicate)
         }
@@ -323,4 +382,9 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         termCache.clear()
         setCurrentCollector(emptyCollector)
     }
+
+    companion object {
+        private const val TMP_NAME = "tmp"
+    }
+
 }
