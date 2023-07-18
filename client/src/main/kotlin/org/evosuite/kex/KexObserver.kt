@@ -12,6 +12,7 @@ import org.vorpal.research.kex.parameters.Parameters
 import org.vorpal.research.kex.state.predicate.Predicate
 import org.vorpal.research.kex.state.predicate.state
 import org.vorpal.research.kex.state.term.Term
+import org.vorpal.research.kex.state.term.TermBuilder.Terms.const
 import org.vorpal.research.kex.state.term.TermBuilder.Terms.field
 import org.vorpal.research.kex.state.term.TermBuilder.Terms.load
 import org.vorpal.research.kex.state.term.TermBuilder.Terms.staticRef
@@ -102,7 +103,18 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     }
 
     private fun handleArray(statement: ArrayStatement, scope: Scope) {
-        TODO()
+        // TODO: probably make dims symbolic
+        val componentType = types.get(statement.arrayReference.componentClass)
+        val dims = statement.lengths.map { it.asValue }
+        val instruction = componentType.asArray.newArray(statement.arrayReference.name, dims)
+
+        val valueTerm = register(statement.returnValue, instruction)
+        val dimsTerm = statement.lengths.map { const(it) }
+        val predicate = state {
+            valueTerm.new(dimsTerm)
+        }
+
+        postProcess(instruction, predicate)
     }
 
     private fun handleConstructor(statement: ConstructorStatement, scope: Scope) {
@@ -234,7 +246,17 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         val termValue = mkTerm(value)
 
         val clause = when (val retval = statement.returnValue) {
-            is ArrayIndex -> TODO()
+            is ArrayIndex -> {
+                // TODO: probably make index symbolic
+                val array = mkValue(retval.array)
+                val instruction = array.store(retval.arrayIndex, value)
+
+                val arrayTerm = mkTerm(array)
+                val predicate = state { arrayTerm[retval.arrayIndex].store(termValue) }
+
+                StateClause(instruction, predicate)
+            }
+
             is FieldReference -> {
                 val field = retval.field.kfgField
                 val owner = retval.source?.let { mkValue(it) }
@@ -289,8 +311,21 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         val value = when (ref) {
             is NullReference -> values.nullConstant
             is ConstantValue -> buildValue(ref.value, ref.genericClass.rawClass)
-            is ArrayReference -> TODO()
-            is ArrayIndex -> TODO()
+            is ArrayIndex -> {
+                // TODO: probably make index symbolic
+                needCaching = false
+
+                val array = mkValue(ref.array)
+                val instruction = array.load(TMP_NAME, ref.arrayIndex)
+
+                val arrayTerm = mkTerm(array)
+                val valueTerm = mkNewTerm(instruction)
+                val predicate = state { valueTerm equality arrayTerm[ref.arrayIndex].load() }
+                postProcess(instruction, predicate)
+
+                instruction
+            }
+
             is FieldReference -> {
                 needCaching = false
 
@@ -305,7 +340,8 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
                 instruction
             }
 
-            else -> TODO()
+            is ArrayReference -> TODO() // unexpected?
+            else -> TODO() // unexpected?
         }
 
         if (needCaching) {
