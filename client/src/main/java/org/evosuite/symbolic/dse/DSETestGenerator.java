@@ -93,7 +93,7 @@ public class DSETestGenerator {
         test.clone(); // I am not sure what is the purpose of this
 
         DefaultTestCase clone_test_case = (DefaultTestCase) test.getTestCase().clone();
-        KexService.execute(clone_test_case.clone());
+//        KexService.execute(clone_test_case.clone());
         final PathCondition collectedPathCondition = new ConcolicExecutorImpl().execute(clone_test_case);
 
         logger.info("Done concolic execution");
@@ -185,6 +185,7 @@ public class DSETestGenerator {
                     DSEStatistics.getInstance().reportNewTestUseful();
                     logger.info("Solution improves fitness, finishing DSE");
                     /* new test was created */
+//                    KexService.execute((DefaultTestCase) test.getTestCase().clone());
                     return test;
                 } else {
                     DSEStatistics.getInstance().reportNewTestUnuseful();
