@@ -28,6 +28,7 @@ import org.vorpal.research.kex.trace.symbolic.TraceCollectorProxy.setCurrentColl
 import org.vorpal.research.kex.util.toKfgType
 import org.vorpal.research.kfg.ClassManager
 import org.vorpal.research.kfg.ir.Field
+import org.vorpal.research.kfg.ir.Method.Companion.CONSTRUCTOR_NAME
 import org.vorpal.research.kfg.ir.MethodDescriptor
 import org.vorpal.research.kfg.ir.value.*
 import org.vorpal.research.kfg.ir.value.instruction.BinaryOpcode
@@ -53,6 +54,8 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
 
     private val valueCache = mutableMapOf<VariableReference, Value>()
     private val termCache = mutableMapOf<Value, Term>()
+
+    val trace get() = collector.symbolicState
 
     init {
         collector = enableCollector(executionContext, NameMapperContext()) as SymbolicTraceBuilder
@@ -214,7 +217,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
             }
         }
 
-        stateBuilder += StateClause(instruction, predicate)
+        postProcess(instruction, predicate)
     }
 
     private fun PrimitiveExpression.Operator.getCmpOpcode(): CmpOpcode? = when (this) {
@@ -372,7 +375,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     private val Executable.kfgMethod
         get() = cm[declaringClass.name].getMethod(
             when (this) {
-                is Constructor<*> -> "<init>"
+                is Constructor<*> -> CONSTRUCTOR_NAME
                 else -> name
             },
             MethodDescriptor(
