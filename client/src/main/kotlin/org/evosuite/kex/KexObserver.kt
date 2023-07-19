@@ -4,6 +4,7 @@ import org.evosuite.testcase.execution.ExecutionObserver
 import org.evosuite.testcase.execution.ExecutionResult
 import org.evosuite.testcase.execution.Scope
 import org.evosuite.testcase.statements.*
+import org.evosuite.testcase.statements.environment.EnvironmentDataStatement
 import org.evosuite.testcase.variable.*
 import org.evosuite.utils.generic.GenericField
 import org.vorpal.research.kex.ExecutionContext
@@ -39,7 +40,7 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 
-
+// TODO: refactor KexObserver and SymbolicTraceBuilder
 class KexObserver(private val executionContext: ExecutionContext) : ExecutionObserver(), InstructionBuilder {
     override val cm: ClassManager
         get() = executionContext.cm
@@ -283,11 +284,15 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         postProcess(clause)
     }
 
-    private fun handlePrimitive(statement: PrimitiveStatement<*>, scope: Scope) {
-        // TODO: handle "non-primitives" for kex
-        val value = buildValue(statement.value, statement.returnClass)
-        register(statement.returnValue, value)
-    }
+    private fun handlePrimitive(statement: PrimitiveStatement<*>, scope: Scope) =
+        when (statement) {
+            is EnumPrimitiveStatement<*> -> TODO()
+            is EnvironmentDataStatement<*> -> TODO("need more research here")
+            else -> {
+                val value = buildValue(statement.value, statement.returnClass)
+                register(statement.returnValue, value)
+            }
+        }
 
     private fun postProcess(instruction: Instruction, predicate: Predicate) {
         postProcess(StateClause(instruction, predicate))
@@ -340,8 +345,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
                 instruction
             }
 
-            is ArrayReference -> TODO() // unexpected?
-            else -> TODO() // unexpected?
+            else -> unreachable { }
         }
 
         if (needCaching) {
@@ -367,10 +371,9 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
 
     private val Executable.kfgMethod
         get() = cm[declaringClass.name].getMethod(
-            if (this is Constructor<*>) {
-                "<init>"
-            } else {
-                name
+            when (this) {
+                is Constructor<*> -> "<init>"
+                else -> name
             },
             MethodDescriptor(
                 parameterTypes.map(types::get),
@@ -401,7 +404,6 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     override fun afterStatement(statement: Statement, scope: Scope, exception: Throwable?) {
         setCurrentCollector(emptyCollector)
 
-        // TODO: handle exception
         collector.lastCall?.let {
             postProcess(it.call, it.predicate)
         }
