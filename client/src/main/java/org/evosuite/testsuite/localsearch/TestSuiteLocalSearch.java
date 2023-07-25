@@ -456,6 +456,8 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 
 		final LocalSearchSuiteType localSearchType;
 		localSearchType = chooseLocalSearchSuiteType();
+//        (new KexTestGenerator()).generateTest(suite);
+//        (new KexTestMutator()).mutateTest(suite);
 
 		/*
 		 * We make a copy of the original test cases before Local Search

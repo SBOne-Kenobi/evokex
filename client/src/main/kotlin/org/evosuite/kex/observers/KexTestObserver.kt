@@ -1,13 +1,12 @@
-package org.evosuite.kex
+package org.evosuite.kex.observers
 
-import org.evosuite.testcase.execution.ExecutionObserver
 import org.evosuite.testcase.execution.ExecutionResult
 import org.evosuite.testcase.execution.Scope
 import org.evosuite.testcase.statements.*
 import org.evosuite.testcase.statements.environment.EnvironmentDataStatement
 import org.evosuite.testcase.variable.*
-import org.evosuite.utils.generic.GenericField
 import org.vorpal.research.kex.ExecutionContext
+import org.vorpal.research.kex.ktype.KexType
 import org.vorpal.research.kex.ktype.kexType
 import org.vorpal.research.kex.parameters.Parameters
 import org.vorpal.research.kex.state.predicate.Predicate
@@ -28,21 +27,37 @@ import org.vorpal.research.kex.trace.symbolic.TraceCollectorProxy.setCurrentColl
 import org.vorpal.research.kex.util.toKfgType
 import org.vorpal.research.kfg.ClassManager
 import org.vorpal.research.kfg.ir.Field
-import org.vorpal.research.kfg.ir.Method.Companion.CONSTRUCTOR_NAME
-import org.vorpal.research.kfg.ir.MethodDescriptor
-import org.vorpal.research.kfg.ir.value.*
+import org.vorpal.research.kfg.ir.value.EmptyUsageContext
+import org.vorpal.research.kfg.ir.value.NameMapperContext
+import org.vorpal.research.kfg.ir.value.UsageContext
+import org.vorpal.research.kfg.ir.value.Value
 import org.vorpal.research.kfg.ir.value.instruction.BinaryOpcode
 import org.vorpal.research.kfg.ir.value.instruction.CmpOpcode
 import org.vorpal.research.kfg.ir.value.instruction.Instruction
 import org.vorpal.research.kfg.ir.value.instruction.InstructionBuilder
 import org.vorpal.research.kthelper.assert.unreachable
 import ru.spbstu.wheels.runIf
-import java.lang.reflect.Constructor
-import java.lang.reflect.Executable
 import java.lang.reflect.Method
 
+private typealias KFGMethod = org.vorpal.research.kfg.ir.Method
+
 // TODO: refactor KexObserver and SymbolicTraceBuilder
-class KexObserver(private val executionContext: ExecutionContext) : ExecutionObserver(), InstructionBuilder {
+class KexTestObserver(executionContext: ExecutionContext, private val id: Int) : KexObserver(executionContext),
+    InstructionBuilder {
+    sealed interface WrappedValue {
+        val value: Value
+
+        val type: KexType get() = value.type.kexType
+        val name: String get() = value.name.toString()
+    }
+
+    private data class KexValue(override val value: Value) : WrappedValue
+
+    private data class EvoVar(val refName: String, override val value: Value) : WrappedValue
+
+    private fun Value.wrap() = KexValue(this)
+    private fun VariableReference.wrap(value: Value) = EvoVar(name, value)
+
     override val cm: ClassManager
         get() = executionContext.cm
     override val ctx: UsageContext = EmptyUsageContext
@@ -52,8 +67,8 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
 
     private val stateBuilder get() = collector.stateBuilder
 
-    private val valueCache = mutableMapOf<VariableReference, Value>()
-    private val termCache = mutableMapOf<Value, Term>()
+    val valueCache = mutableMapOf<String, WrappedValue>()
+    val termCache = mutableMapOf<WrappedValue, Term>()
 
     val trace get() = collector.symbolicState
 
@@ -62,30 +77,16 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         emptyCollector = initializeEmptyCollector()
     }
 
-    override fun output(position: Int, output: String) {
-        // Nothing
-    }
-
     override fun beforeStatement(statement: Statement, scope: Scope) {
-        when (statement) {
-            is FieldStatement -> handleField(statement, scope)
-            is ArrayStatement -> handleArray(statement, scope)
-            is PrimitiveExpression -> handleExpression(statement, scope)
-            is AssignmentStatement -> handleAssignment(statement, scope)
-            is PrimitiveStatement<*> -> handlePrimitive(statement, scope)
-            is ConstructorStatement -> handleConstructor(statement, scope)
-            is MethodStatement -> handleMethod(statement, scope)
-            is FunctionalMockStatement -> handleMock(statement, scope)
-        }
-
+        super.beforeStatement(statement, scope)
         setCurrentCollector(collector)
     }
 
-    private fun buildField(field: Field, source: Value?, name: String): Pair<Instruction, Term> {
+    private fun buildField(field: Field, source: WrappedValue?, name: String): Pair<Instruction, Term> {
         val instruction = if (field.isStatic) {
             field.load(name)
         } else {
-            source!!.load(name, field)
+            source!!.value.load(name, field)
         }
 
         val ownerTerm = source?.let { mkTerm(it) }
@@ -95,7 +96,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         return instruction to term
     }
 
-    private fun handleField(statement: FieldStatement, scope: Scope) {
+    override fun beforeField(statement: FieldStatement, scope: Scope) {
         val field = statement.field.kfgField
         val source = statement.source?.let { mkValue(it) }
 
@@ -106,7 +107,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         postProcess(instruction, predicate)
     }
 
-    private fun handleArray(statement: ArrayStatement, scope: Scope) {
+    override fun beforeArray(statement: ArrayStatement, scope: Scope) {
         // TODO: probably make dims symbolic
         val componentType = types.get(statement.arrayReference.componentClass)
         val dims = statement.lengths.map { it.asValue }
@@ -121,7 +122,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         postProcess(instruction, predicate)
     }
 
-    private fun handleConstructor(statement: ConstructorStatement, scope: Scope) {
+    override fun beforeConstructor(statement: ConstructorStatement, scope: Scope) {
         val constructor = statement.constructor.constructor.kfgMethod
         val args = statement.parameterReferences.map { mkValue(it) }
 
@@ -132,10 +133,10 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         }
         postProcess(newInst, predicate)
 
-        collector.lastCall = buildCall(constructor, null, newInst, args, scope)
+        collector.lastCall = buildCall(constructor, null, mkValue(statement.returnValue), args, scope)
     }
 
-    private fun handleMethod(statement: MethodStatement, scope: Scope) {
+    override fun beforeMethod(statement: MethodStatement, scope: Scope) {
         val method = statement.method.method.kfgMethod
         val callee = statement.callee?.let { mkValue(it) }
         val args = statement.parameterReferences.map { mkValue(it) }
@@ -144,26 +145,26 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     }
 
     private fun buildCall(
-        method: org.vorpal.research.kfg.ir.Method,
+        method: KFGMethod,
         returnValue: VariableReference?,
-        callee: Value?,
-        args: List<Value>,
+        callee: WrappedValue?,
+        args: List<WrappedValue>,
         scope: Scope
     ): SymbolicTraceBuilder.Call {
+        val unwrappedArgs = args.map { it.value }
         val name = returnValue?.name
         val isVoid = returnValue?.type?.let { it == Void.TYPE } ?: true
         val instruction = when {
-            method.isStatic && isVoid -> method.staticCall(method.klass, args)
-            method.isStatic -> method.staticCall(method.klass, name!!, args)
+            method.isStatic && isVoid -> method.staticCall(method.klass, unwrappedArgs)
+            method.isStatic -> method.staticCall(method.klass, name!!, unwrappedArgs)
 
-            method.isConstructor && isVoid -> method.specialCall(method.klass, callee!!, args)
-            method.isConstructor -> method.specialCall(method.klass, name!!, callee!!, args)
+            method.isConstructor -> method.specialCall(method.klass, callee!!.value, unwrappedArgs)
 
-            method.klass.isInterface && isVoid -> method.interfaceCall(method.klass, callee!!, args)
-            method.klass.isInterface -> method.interfaceCall(method.klass, name!!, callee!!, args)
+            method.klass.isInterface && isVoid -> method.interfaceCall(method.klass, callee!!.value, unwrappedArgs)
+            method.klass.isInterface -> method.interfaceCall(method.klass, name!!, callee!!.value, unwrappedArgs)
 
-            isVoid -> method.virtualCall(method.klass, callee!!, args)
-            else -> method.virtualCall(method.klass, name!!, callee!!, args)
+            isVoid -> method.virtualCall(method.klass, callee!!.value, unwrappedArgs)
+            else -> method.virtualCall(method.klass, name!!, callee!!.value, unwrappedArgs)
         }
 
         val valueTerm = runIf(!isVoid) { register(returnValue!!, instruction) }
@@ -183,11 +184,11 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         )
     }
 
-    private fun handleMock(statement: FunctionalMockStatement, scope: Scope) {
+    override fun beforeMock(statement: FunctionalMockStatement, scope: Scope) {
         TODO("Not supported in Kex")
     }
 
-    private fun handleExpression(statement: PrimitiveExpression, scope: Scope) {
+    override fun beforeExpression(statement: PrimitiveExpression, scope: Scope) {
         val lhv = mkValue(statement.leftOperand)
         val rhv = mkValue(statement.rightOperand)
 
@@ -196,9 +197,9 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
 
         val name = statement.returnValue.name
         val instruction = if (binOpcode != null) {
-            binary(name, binOpcode, lhv, rhv)
+            binary(name, binOpcode, lhv.value, rhv.value)
         } else if (cmpOpcode != null) {
-            cmp(name, statement.returnClass.toKfgType(types), cmpOpcode, lhv, rhv)
+            cmp(name, statement.returnClass.toKfgType(types), cmpOpcode, lhv.value, rhv.value)
         } else {
             unreachable { }
         }
@@ -245,7 +246,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         else -> null
     }
 
-    private fun handleAssignment(statement: AssignmentStatement, scope: Scope) {
+    override fun beforeAssignment(statement: AssignmentStatement, scope: Scope) {
         val value = mkValue(statement.value)
         val termValue = mkTerm(value)
 
@@ -253,7 +254,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
             is ArrayIndex -> {
                 // TODO: probably make index symbolic
                 val array = mkValue(retval.array)
-                val instruction = array.store(retval.arrayIndex, value)
+                val instruction = array.value.store(retval.arrayIndex, value.value)
 
                 val arrayTerm = mkTerm(array)
                 val predicate = state { arrayTerm[retval.arrayIndex].store(termValue) }
@@ -266,9 +267,9 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
                 val owner = retval.source?.let { mkValue(it) }
 
                 val instruction = if (retval.field.isStatic) {
-                    field.store(value)
+                    field.store(value.value)
                 } else {
-                    owner!!.store(field, value)
+                    owner!!.value.store(field, value.value)
                 }
 
                 val termOwner = owner?.let { mkTerm(it) }
@@ -287,7 +288,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         postProcess(clause)
     }
 
-    private fun handlePrimitive(statement: PrimitiveStatement<*>, scope: Scope) =
+    override fun beforePrimitive(statement: PrimitiveStatement<*>, scope: Scope) {
         when (statement) {
             is EnumPrimitiveStatement<*> -> TODO()
             is EnvironmentDataStatement<*> -> TODO("need more research here")
@@ -296,6 +297,7 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
                 register(statement.returnValue, value)
             }
         }
+    }
 
     private fun postProcess(instruction: Instruction, predicate: Predicate) {
         postProcess(StateClause(instruction, predicate))
@@ -306,32 +308,34 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
     }
 
     private fun register(ref: VariableReference, value: Value): Term {
-        valueCache[ref] = value
-        return mkNewTerm(value)
+        val wrapped = ref.wrap(value)
+        valueCache[ref.name] = wrapped
+        return mkNewTerm(wrapped, ref.name)
     }
 
-    private fun mkValue(ref: VariableReference): Value =
-        valueCache.getOrElse(ref) { mkNewValue(ref) }
+    private fun mkValue(ref: VariableReference): WrappedValue =
+        valueCache.getOrElse(ref.name) { mkNewValue(ref) }
 
-    private fun mkNewValue(ref: VariableReference): Value {
+    private fun mkNewValue(ref: VariableReference): WrappedValue {
         var needCaching = true
 
         val value = when (ref) {
-            is NullReference -> values.nullConstant
-            is ConstantValue -> buildValue(ref.value, ref.genericClass.rawClass)
+            is NullReference -> ref.wrap(values.nullConstant)
+            is ConstantValue -> ref.wrap(buildValue(ref.value, ref.variableClass))
             is ArrayIndex -> {
                 // TODO: probably make index symbolic
                 needCaching = false
 
                 val array = mkValue(ref.array)
-                val instruction = array.load(TMP_NAME, ref.arrayIndex)
+                val instruction = array.value.load(TMP_NAME, ref.arrayIndex)
+                val wrappedInstruction = instruction.wrap()
 
                 val arrayTerm = mkTerm(array)
-                val valueTerm = mkNewTerm(instruction)
+                val valueTerm = mkNewTerm(wrappedInstruction)
                 val predicate = state { valueTerm equality arrayTerm[ref.arrayIndex].load() }
                 postProcess(instruction, predicate)
 
-                instruction
+                wrappedInstruction
             }
 
             is FieldReference -> {
@@ -341,18 +345,19 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
                 val source = ref.source?.let { mkValue(it) }
 
                 val (instruction, loadTerm) = buildField(field, source, TMP_NAME)
-                val valueTerm = mkNewTerm(instruction)
+                val wrappedInstruction = instruction.wrap()
+                val valueTerm = mkNewTerm(wrappedInstruction)
                 val predicate = state { valueTerm equality loadTerm }
                 postProcess(instruction, predicate)
 
-                instruction
+                wrappedInstruction
             }
 
             else -> unreachable { }
         }
 
         if (needCaching) {
-            valueCache[ref] = value
+            valueCache[ref.name] = value
         }
         return value
     }
@@ -372,36 +377,13 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         else -> unreachable { }
     }
 
-    private val Executable.kfgMethod
-        get() = cm[declaringClass.name].getMethod(
-            when (this) {
-                is Constructor<*> -> CONSTRUCTOR_NAME
-                else -> name
-            },
-            MethodDescriptor(
-                parameterTypes.map(types::get),
-                when {
-                    this is Method && returnType != Void.TYPE -> types.get(returnType)
-                    else -> types.voidType
-                }
-            )
+    private fun mkTerm(value: WrappedValue): Term = termCache.getOrElse(value) { mkNewTerm(value) }
+
+    private fun mkNewTerm(value: WrappedValue, name: String? = null): Term = term {
+        termFactory.getValue(
+            value.type,
+            collector.nameGenerator.nextName("$evoPrefix${name ?: value.name}")
         )
-
-    private val GenericField.kfgField: Field
-        get() {
-            val cl = cm[ownerClass.className]
-            val type = types.get(rawGeneratedType)
-            return cl.getField(name, type)
-        }
-
-    private fun mkTerm(value: Value): Term = termCache.getOrElse(value) { mkNewTerm(value) }
-
-    private fun mkNewTerm(value: Value): Term = term {
-        if (value is Constant) {
-            const(value) // TODO: make it symbolic here?
-        } else {
-            termFactory.getValue(value.type.kexType, collector.nameGenerator.nextName(value.name.toString()))
-        }
     }.also { termCache[value] = it }
 
     override fun afterStatement(statement: Statement, scope: Scope, exception: Throwable?) {
@@ -424,8 +406,11 @@ class KexObserver(private val executionContext: ExecutionContext) : ExecutionObs
         setCurrentCollector(emptyCollector)
     }
 
+    private val evoPrefix = "$EVO_NAME$id%"
+
     companion object {
         private const val TMP_NAME = "tmp"
+        const val EVO_NAME = "%evo%"
     }
 
 }

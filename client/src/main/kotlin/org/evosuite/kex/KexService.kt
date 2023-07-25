@@ -5,14 +5,15 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import org.evosuite.Properties
 import org.evosuite.classpath.ClassPathHandler
+import org.evosuite.kex.observers.KexObserver
 import org.evosuite.testcase.DefaultTestCase
+import org.evosuite.testcase.execution.ExecutionResult
 import org.evosuite.testcase.execution.TestCaseExecutor
 import org.slf4j.LoggerFactory
 import org.vorpal.research.kex.config.FileConfig
 import org.vorpal.research.kex.config.RuntimeConfig
 import org.vorpal.research.kex.config.kexConfig
 import org.vorpal.research.kex.launcher.ConcolicLauncher
-import org.vorpal.research.kex.trace.symbolic.SymbolicState
 import org.vorpal.research.kex.util.instrumentedCodeDirectory
 import org.vorpal.research.kfg.ir.Method
 import kotlin.time.ExperimentalTime
@@ -49,14 +50,12 @@ object KexService {
     }
 
     @JvmStatic
-    fun execute(defaultTestCase: DefaultTestCase): SymbolicState? {
-        // Kex preparation
-        val kexObserver = KexObserver(ctx)
-
-        // Evosuite preparation
+    fun execute(
+        defaultTestCase: DefaultTestCase,
+        kexObserver: KexObserver
+    ): ExecutionResult? {
         defaultTestCase.changeClassLoader(loader)
 
-        // Execution preparation
         val originalExecutionObservers = TestCaseExecutor.getInstance().executionObservers
         TestCaseExecutor.getInstance().newObservers()
         TestCaseExecutor.getInstance().addObserver(kexObserver)
@@ -64,7 +63,6 @@ object KexService {
         // Execution
         return try {
             TestCaseExecutor.getInstance().execute(defaultTestCase, Properties.CONCOLIC_TIMEOUT)
-            kexObserver.trace
         } catch (e: Exception) {
             logger.error("Exception during kex execution: ", e)
             null
