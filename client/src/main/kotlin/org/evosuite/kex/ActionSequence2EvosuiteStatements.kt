@@ -1,5 +1,8 @@
 package org.evosuite.kex
 
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.InternalSerializationApi
 import org.evosuite.testcase.TestCase
 import org.evosuite.testcase.statements.*
 import org.evosuite.testcase.variable.*
@@ -10,15 +13,22 @@ import org.vorpal.research.kex.reanimator.actionsequence.*
 import org.vorpal.research.kex.util.getConstructor
 import org.vorpal.research.kex.util.getMethod
 import org.vorpal.research.kex.util.loadClass
+import org.vorpal.research.kfg.ir.Field
 import org.vorpal.research.kfg.ir.Method
 import org.vorpal.research.kfg.type.ArrayType
 import java.lang.reflect.Type
+import kotlin.time.ExperimentalTime
 
 private typealias KFGType = org.vorpal.research.kfg.type.Type
 private typealias KFGClass = org.vorpal.research.kfg.ir.Class
 
+@ExperimentalTime
+@InternalSerializationApi
+@ExperimentalSerializationApi
+@DelicateCoroutinesApi
 class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, private val testCase: TestCase) {
 
+    private val reflectionUtils get() = KexService.reflectionUtils
     private val loader get() = ctx.loader
 
     private val refs = mutableMapOf<String, VariableReference>()
@@ -33,6 +43,18 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
         refs[name] = it
     }
 
+    private val ActionSequence.asValue: Any?
+        get() = when (this) {
+            is PrimaryValue<*> -> value
+            is StringValue -> value
+            else -> null
+        }
+
+    private val String.asConstantValue
+        get() = ConstantValue(testCase, GenericClassFactory.get(String::class.java), this)
+    private val Class<*>.asConstantValue
+        get() = ConstantValue(testCase, GenericClassFactory.get(Class::class.java), this)
+
     private val KFGType.java: Type
         get() = when (this) {
             is ArrayType -> GenericArrayTypeImpl.createArrayType(component.java)
@@ -46,21 +68,34 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
         when (actionSequence) {
             is ActionList -> actionSequence.list.forEach { generateStatementsFromAction(actionSequence, it) }
             is ReflectionList -> actionSequence.list.forEach { generateStatementsFromReflection(actionSequence, it) }
-            is TestCall -> TODO()
-            is UnknownSequence -> TODO()
+            is TestCall -> generateTestCall(actionSequence)
+            is UnknownSequence -> TODO("not supported lol")
             is PrimaryValue<*>, is StringValue -> {
-                // nothing
+                // nothing to generate
             }
         }
     }
 
     fun generateTestCall(method: Method, parameters: Parameters<ActionSequence>) {
-        TODO()
+        generateMethodStatement(method, parameters.instance, parameters.arguments)
     }
 
-    private fun ActionSequence.generateAndGetRef(): VariableReference {
-        generateStatements(this)
-        return ref
+    private fun ActionSequence.generateAndGetRef(): VariableReference = when (this) {
+        is PrimaryValue<*> -> if (value == null) {
+            NullReference(testCase, Object::class.java)
+        } else {
+            ConstantValue(testCase, GenericClassFactory.get(value!!.javaClass), value)
+        }
+
+        is StringValue -> value.asConstantValue
+        else -> {
+            generateStatements(this)
+            ref
+        }
+    }
+
+    private fun generateTestCall(testCall: TestCall) {
+        generateMethodStatement(testCall.test, testCall.instance, testCall.args)
     }
 
     private fun generateStatementsFromReflection(owner: ReflectionList, call: ReflectionCall) {
@@ -69,28 +104,60 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
             is ReflectionNewArray -> generateReflectionCall(owner, call)
             is ReflectionNewInstance -> generateReflectionCall(owner, call)
             is ReflectionSetField -> generateReflectionCall(owner, call)
-            is ReflectionSetStaticField -> generateReflectionCall(owner, call)
+            is ReflectionSetStaticField -> generateReflectionCall(call)
         }
     }
 
     private fun generateReflectionCall(owner: ReflectionList, call: ReflectionArrayWrite) {
-
+        val ownerRef = owner.ref
+        val index = call.index.generateAndGetRef()
+        val value = call.value.generateAndGetRef()
+        val args = listOf(ownerRef, index, value)
+        val method = reflectionUtils.setPrimitiveElementMap[value.type.typeName] ?: reflectionUtils.setElement
+        +KexReflectionStatement(testCase, method.name, args)
     }
 
     private fun generateReflectionCall(owner: ReflectionList, call: ReflectionNewArray) {
-
+        val type = call.type.java
+        val elementType = call.asArray.component.java
+        val length = call.length.generateAndGetRef()
+        val primitiveMethod = reflectionUtils.newPrimitiveArrayMap[elementType.typeName]
+        val args: List<VariableReference>
+        val method = if (primitiveMethod != null) {
+            args = listOf(length)
+            primitiveMethod
+        } else {
+            args = listOf(elementType.typeName.asConstantValue, length)
+            reflectionUtils.newArray
+        }
+        val ref = owner.createRef(type)
+        +KexReflectionStatement(testCase, method.name, args, ref)
     }
 
     private fun generateReflectionCall(owner: ReflectionList, call: ReflectionNewInstance) {
-
+        val type = call.type.java
+        val method = reflectionUtils.newInstance
+        val args = listOf(type.typeName.asConstantValue)
+        val ref = owner.createRef(type)
+        +KexReflectionStatement(testCase, method.name, args, ref)
     }
+
+    private fun generateReflectionSetField(owner: ActionSequence?, field: Field, value: ActionSequence) {
+        val valueRef = value.generateAndGetRef()
+        val method = reflectionUtils.setPrimitiveFieldMap[valueRef.type.typeName] ?: reflectionUtils.setField
+        val klass = field.klass.java.asConstantValue
+        val name = field.name.asConstantValue
+        val args = listOf(owner?.ref ?: NullReference(testCase, Object::class.java), klass, name, valueRef)
+        +KexReflectionStatement(testCase, method.name, args)
+    }
+
 
     private fun generateReflectionCall(owner: ReflectionList, call: ReflectionSetField) {
-
+        generateReflectionSetField(owner, call.field, call.value)
     }
 
-    private fun generateReflectionCall(owner: ReflectionList, call: ReflectionSetStaticField) {
-
+    private fun generateReflectionCall(call: ReflectionSetStaticField) {
+        generateReflectionSetField(null, call.field, call.value)
     }
 
     private fun generateStatementsFromAction(owner: ActionList, action: CodeAction) {
@@ -115,7 +182,8 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
     private fun generateAction(owner: ActionList, action: ArrayWrite) {
         val value = action.value.generateAndGetRef()
         val index = ArrayIndex(
-            testCase, owner.ref as ArrayReference, (action.index as PrimaryValue<*>).value as Int
+            testCase, owner.ref as ArrayReference,
+            action.index.asValue as Int
         )
         +AssignmentStatement(testCase, index, value)
     }
@@ -148,12 +216,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
     }
 
     private fun generateAction(owner: ActionList, action: ExternalMethodCall) {
-        val callee = action.instance.generateAndGetRef()
-        val refArgs = action.args.map { it.generateAndGetRef() }
-        val type = action.method.klass.java
-        val genericMethod = GenericMethod(type.getMethod(action.method, loader), type)
-        val ref = owner.createRef(type)
-        +MethodStatement(testCase, genericMethod, callee, refArgs, ref)
+        generateMethodStatement(action.method, action.instance, action.args, owner)
     }
 
     private fun generateAction(owner: ActionList, action: FieldSetter) {
@@ -170,10 +233,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
     }
 
     private fun generateAction(owner: ActionList, action: MethodCall) {
-        val args = action.args.map { it.generateAndGetRef() }
-        val type = action.method.klass.java
-        val method = GenericMethod(type.getMethod(action.method, loader), type)
-        +MethodStatement(testCase, method, owner.ref, args)
+        generateMethodStatement(action.method, owner, action.args)
     }
 
     private fun generateNewArray(owner: ActionSequence, type: Type, length: Int): ArrayReference {
@@ -185,7 +245,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
 
     private fun generateAction(owner: ActionList, action: NewArray) {
         val type = action.klass.java
-        val length = (action.length as PrimaryValue<*>).value as Int
+        val length = action.length.asValue as Int
         generateNewArray(owner, type, length)
     }
 
@@ -216,10 +276,25 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
     }
 
     private fun generateAction(action: StaticMethodCall) {
-        val args = action.args.map { it.generateAndGetRef() }
-        val type = action.method.klass.java
-        val method = GenericMethod(type.getMethod(action.method, loader), type)
-        +MethodStatement(testCase, method, null, args)
+        generateMethodStatement(action.method, null, action.args)
+    }
+
+    private fun generateMethodStatement(
+        method: Method,
+        callee: ActionSequence?,
+        args: List<ActionSequence>,
+        ret: ActionSequence? = null
+    ) {
+        val type = method.klass.java
+        val calleeRef = callee?.generateAndGetRef()
+        val argsRef = args.map { it.generateAndGetRef() }
+        val genericMethod = GenericMethod(type.getMethod(method, loader), type)
+        val retRef = ret?.createRef(method.returnType.java)
+        if (retRef != null) {
+            +MethodStatement(testCase, genericMethod, calleeRef, argsRef, retRef)
+        } else {
+            +MethodStatement(testCase, genericMethod, calleeRef, argsRef)
+        }
     }
 
 }

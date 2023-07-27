@@ -35,29 +35,27 @@ class KexTestGenerator {
         pathSelector.addExecutionTrace(method, SuccessResult(trace))
     }
 
-    fun generateTest(suite: TestSuiteChromosome, needExecute: Boolean = true): TestCase? = runBlocking {
-        if (needExecute) {
-            val observer = KexStatementObserver(ctx)
-            suite.testChromosomes.forEach { test ->
-                val testCaseClone = test.testCase.clone() as DefaultTestCase
-                KexService.execute(testCaseClone, observer)?.let {
-                    observer.states.forEach { (key, state) ->
-                        if (state.path.path.isNotEmpty()) {
-                            updateWithTrace(state, key.method)
-                        }
+    fun generateTest(suite: TestSuiteChromosome): TestCase? = runBlocking {
+        val observer = KexStatementObserver(ctx)
+        suite.testChromosomes.forEach { test ->
+            val testCaseClone = test.testCase.clone() as DefaultTestCase
+            KexService.execute(testCaseClone, observer)?.let {
+                observer.states.forEach { (key, state) ->
+                    if (state.isNotEmpty()) {
+                        updateWithTrace(state, key.method)
                     }
                 }
             }
         }
 
-        if (!pathSelector.hasNext()) {
-            return@runBlocking null
-        }
-        val state = pathSelector.next()
-        val method = pathSelector.lastCandidate.method
-        val parameters = state.checkAndGetParameters(ctx, method) ?: return@runBlocking null
+        while (pathSelector.hasNext()) {
+            val state = pathSelector.next()
+            val method = pathSelector.lastCandidate.method
+            val parameters = state.checkAndGetParameters(ctx, method) ?: continue
 
-        generateTest(parameters, method)
+            return@runBlocking generateTest(parameters, method)
+        }
+        null
     }
 
 

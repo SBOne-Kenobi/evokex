@@ -24,6 +24,7 @@ import org.evosuite.ga.FitnessFunction;
 import org.evosuite.ga.localsearch.LocalSearch;
 import org.evosuite.ga.localsearch.LocalSearchBudget;
 import org.evosuite.ga.localsearch.LocalSearchObjective;
+import org.evosuite.kex.KexTestGenerator;
 import org.evosuite.testcase.AbstractTestChromosome;
 import org.evosuite.testcase.TestCase;
 import org.evosuite.testcase.TestCaseExpander;
@@ -437,61 +438,63 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
      */
     private void applyLocalSearch(TestSuiteChromosome suite, LocalSearchObjective<TestSuiteChromosome> objective) {
 
-//        (new KexTestGenerator()).generateTest(suite);
+        TestCase newTest = (new KexTestGenerator()).generateTest(suite);
+        suite.addTest(newTest);
+        updateFitness(suite, objective.getFitnessFunctions());
 //        (new KexTestMutator()).mutateTest(suite);
 
-        final LocalSearchSuiteType localSearchType;
-        localSearchType = chooseLocalSearchSuiteType();
-
-        /*
-         * We make a copy of the original test cases before Local Search
-         */
-        List<TestChromosome> originalTests = new ArrayList<>(suite.getTestChromosomes());
-
-        for (final TestChromosome test : originalTests) {
-
-            // If we have already tried local search before on this test
-            // without success, we reset all primitive values before trying
-            // again
-            if (test.hasLocalSearchBeenApplied()) {
-                TestCaseLocalSearch.randomizePrimitives(test.getTestCase());
-                updateFitness(suite, objective.getFitnessFunctions());
-            }
-
-            if (LocalSearchBudget.getInstance().isFinished()) {
-                logger.debug("Local search budget used up: " + Properties.LOCAL_SEARCH_BUDGET_TYPE);
-                break;
-            }
-            logger.debug("Local search budget not yet used up");
-
-            final double tossCoin = Randomness.nextDouble();
-            final boolean shouldApplyDSE = localSearchType == LocalSearchSuiteType.ALWAYS_DSE
-                    || (localSearchType == LocalSearchSuiteType.DSE_AND_AVM && tossCoin <= Properties.DSE_PROBABILITY);
-
-            /*
-             * We create a cloned test case to play local search with it. This
-             * resembles the deprecated ensureDoubleExecution
-             */
-            TestChromosome clonedTest = test.clone();
-            suite.addTest(clonedTest);
-            final int lastIndex = suite.size() - 1;
-
-            final boolean improved;
-            if (shouldApplyDSE) {
-                improved = applyDSE(suite, lastIndex, clonedTest, objective);
-            } else {
-                improved = applyAVM(suite, lastIndex, clonedTest, objective);
-            }
-
-            if (improved) {
-                updateFitness(suite, objective.getFitnessFunctions());
-            } else {
-                // remove cloned test case if there was no improvement
-                suite.deleteTest(clonedTest);
-            }
-
-            test.setLocalSearchApplied(true);
-        }
+//        final LocalSearchSuiteType localSearchType;
+//        localSearchType = chooseLocalSearchSuiteType();
+//
+//        /*
+//         * We make a copy of the original test cases before Local Search
+//         */
+//        List<TestChromosome> originalTests = new ArrayList<>(suite.getTestChromosomes());
+//
+//        for (final TestChromosome test : originalTests) {
+//
+//            // If we have already tried local search before on this test
+//            // without success, we reset all primitive values before trying
+//            // again
+//            if (test.hasLocalSearchBeenApplied()) {
+//                TestCaseLocalSearch.randomizePrimitives(test.getTestCase());
+//                updateFitness(suite, objective.getFitnessFunctions());
+//            }
+//
+//            if (LocalSearchBudget.getInstance().isFinished()) {
+//                logger.debug("Local search budget used up: " + Properties.LOCAL_SEARCH_BUDGET_TYPE);
+//                break;
+//            }
+//            logger.debug("Local search budget not yet used up");
+//
+//            final double tossCoin = Randomness.nextDouble();
+//            final boolean shouldApplyDSE = localSearchType == LocalSearchSuiteType.ALWAYS_DSE
+//                    || (localSearchType == LocalSearchSuiteType.DSE_AND_AVM && tossCoin <= Properties.DSE_PROBABILITY);
+//
+//            /*
+//             * We create a cloned test case to play local search with it. This
+//             * resembles the deprecated ensureDoubleExecution
+//             */
+//            TestChromosome clonedTest = test.clone();
+//            suite.addTest(clonedTest);
+//            final int lastIndex = suite.size() - 1;
+//
+//            final boolean improved;
+//            if (shouldApplyDSE) {
+//                improved = applyDSE(suite, lastIndex, clonedTest, objective);
+//            } else {
+//                improved = applyAVM(suite, lastIndex, clonedTest, objective);
+//            }
+//
+//            if (improved) {
+//                updateFitness(suite, objective.getFitnessFunctions());
+//            } else {
+//                // remove cloned test case if there was no improvement
+//                suite.deleteTest(clonedTest);
+//            }
+//
+//            test.setLocalSearchApplied(true);
+//        }
 
     }
 
