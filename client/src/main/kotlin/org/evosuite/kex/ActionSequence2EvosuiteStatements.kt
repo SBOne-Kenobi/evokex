@@ -3,11 +3,11 @@ package org.evosuite.kex
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
+import org.evosuite.TestGenerationContext
 import org.evosuite.testcase.TestCase
 import org.evosuite.testcase.statements.*
 import org.evosuite.testcase.variable.*
 import org.evosuite.utils.generic.*
-import org.vorpal.research.kex.ExecutionContext
 import org.vorpal.research.kex.parameters.Parameters
 import org.vorpal.research.kex.reanimator.actionsequence.*
 import org.vorpal.research.kex.util.getConstructor
@@ -26,10 +26,10 @@ private typealias KFGClass = org.vorpal.research.kfg.ir.Class
 @InternalSerializationApi
 @ExperimentalSerializationApi
 @DelicateCoroutinesApi
-class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, private val testCase: TestCase) {
+class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
 
     private val reflectionUtils get() = KexService.reflectionUtils
-    private val loader get() = ctx.loader
+    private val loader get() = TestGenerationContext.getInstance().classLoaderForSUT
 
     private val refs = mutableMapOf<String, VariableReference>()
 
@@ -43,17 +43,12 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
         refs[name] = it
     }
 
-    private val ActionSequence.asValue: Any?
-        get() = when (this) {
-            is PrimaryValue<*> -> value
-            is StringValue -> value
-            else -> null
-        }
-
+    private val ActionSequence.asInt: Int get() = (this as PrimaryValue<*>).value as Int
+    private val Class<*>.sutClass: Class<*> get() = loader.loadClass(name)
     private val String.asConstantValue
-        get() = ConstantValue(testCase, GenericClassFactory.get(String::class.java), this)
+        get() = ConstantValue(testCase, GenericClassFactory.get(String::class.java.sutClass), this)
     private val Class<*>.asConstantValue
-        get() = ConstantValue(testCase, GenericClassFactory.get(Class::class.java), this)
+        get() = ConstantValue(testCase, GenericClassFactory.get(Class::class.java.sutClass), this)
 
     private val KFGType.java: Type
         get() = when (this) {
@@ -82,9 +77,11 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
 
     private fun ActionSequence.generateAndGetRef(): VariableReference = when (this) {
         is PrimaryValue<*> -> if (value == null) {
-            NullReference(testCase, Object::class.java)
+            NullReference(testCase, Object::class.java.sutClass)
         } else {
-            ConstantValue(testCase, GenericClassFactory.get(value!!.javaClass), value)
+            ConstantValue(testCase, GenericClassFactory.get(value!!.javaClass), value).apply {
+                changeClassLoader(loader)
+            }
         }
 
         is StringValue -> value.asConstantValue
@@ -147,7 +144,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
         val method = reflectionUtils.setPrimitiveFieldMap[valueRef.type.typeName] ?: reflectionUtils.setField
         val klass = field.klass.java.asConstantValue
         val name = field.name.asConstantValue
-        val args = listOf(owner?.ref ?: NullReference(testCase, Object::class.java), klass, name, valueRef)
+        val args = listOf(owner?.ref ?: NullReference(testCase, Object::class.java.sutClass), klass, name, valueRef)
         +KexReflectionStatement(testCase, method.name, args)
     }
 
@@ -183,7 +180,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
         val value = action.value.generateAndGetRef()
         val index = ArrayIndex(
             testCase, owner.ref as ArrayReference,
-            action.index.asValue as Int
+            action.index.asInt
         )
         +AssignmentStatement(testCase, index, value)
     }
@@ -245,7 +242,7 @@ class ActionSequence2EvosuiteStatements(private val ctx: ExecutionContext, priva
 
     private fun generateAction(owner: ActionList, action: NewArray) {
         val type = action.klass.java
-        val length = action.length.asValue as Int
+        val length = action.length.asInt
         generateNewArray(owner, type, length)
     }
 
