@@ -67,7 +67,7 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
         get() = _nodes.toSet()
 
     private val coveredChildren = mutableMapOf<InnerVertex, Int>()
-    private val InnerVertex.isCovered get() = coveredChildren[this] == size
+    private val InnerVertex.isCovered get() = coveredChildren.getOrDefault(this, 0) == size
 
     private val visited = mutableSetOf<InnerVertex>()
     private val InnerVertex.isVisited get() = this in visited
@@ -88,8 +88,7 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
                         visited += prevVertex
                         prevVertex.initBy(state, clause)
                         initialized = true
-                    }
-                    if (prevVertex.isCovered) return
+                    } else if (prevVertex.isCovered) return
 
                     val currentVertex = prevVertex[clause]!!
                     if (!currentVertex.isVisited && !initialized) {
@@ -206,19 +205,15 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
             val graphNodes = mutableMapOf<Vertex, GraphView>()
 
             for ((i, vertex) in _nodes.withIndex()) {
-                val name = buildString {
+                graphNodes[vertex] = GraphView("$i", "$vertex") {
                     if (vertex is InnerVertex) {
-                        if (vertex.isCovered) {
-                            appendLine("covered")
-                        } else if (vertex.isVisited) {
-                            appendLine("visited")
-                        } else {
-                            appendLine("candidate")
+                        if (!vertex.isVisited) {
+                            it.setColor("blue")
+                        } else if (vertex.isCovered) {
+                            it.setColor("green")
                         }
                     }
-                    append(vertex)
                 }
-                graphNodes[vertex] = GraphView("$i", name)
             }
 
             for (vertex in _nodes) {
