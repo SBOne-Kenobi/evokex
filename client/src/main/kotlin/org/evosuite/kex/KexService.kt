@@ -22,6 +22,8 @@ import org.vorpal.research.kex.util.compiledCodeDirectory
 import org.vorpal.research.kex.util.instrumentedCodeDirectory
 import org.vorpal.research.kex.util.testcaseDirectory
 import org.vorpal.research.kfg.ir.Method
+import java.io.File
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.div
 import kotlin.time.ExperimentalTime
 
@@ -72,6 +74,9 @@ object KexService {
         driver.compile(listOf(reflectionFile))
 
         ClassPathHacker.addURL(compileDir.toUri().toURL())
+
+        val cp = ClassPathHandler.getInstance().evoSuiteClassPath.split(File.pathSeparator).toTypedArray()
+        ClassPathHandler.getInstance().setEvoSuiteClassPath(cp + compileDir.absolutePathString())
     }
 
     @JvmStatic

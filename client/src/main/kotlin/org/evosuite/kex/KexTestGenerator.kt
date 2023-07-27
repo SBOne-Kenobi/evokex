@@ -73,7 +73,7 @@ class KexTestGenerator {
     private fun generateTest(parameters: Parameters<Descriptor>, method: Method): TestCase {
         val actionParameters = parameters.actionSequences.rtUnmapped
         val testCase = DefaultTestCase()
-        val generator = ActionSequence2EvosuiteStatements(ctx, testCase)
+        val generator = ActionSequence2EvosuiteStatements(testCase)
 
         for (seq in actionParameters.asList) {
             generator.generateStatements(seq)
