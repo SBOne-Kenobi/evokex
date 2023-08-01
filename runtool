@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# switch to environment JVM as needed
+# JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+JAVA_HOME=/usr
+
+#SCRIPT_DIR=/home/kexised-evosuite
+SCRIPT_DIR=/home/evokex
+
+EVO=$SCRIPT_DIR/master/target/evosuite-master-1.2.0.jar
+TOOL=$SCRIPT_DIR/junitcontest/target/evosuite-junitcontest-1.2.0.jar
+
+
+java -cp $SCRIPT_DIR:$EVO:$TOOL -Dlogback.configurationFile=$SCRIPT_DIR/sbst_logback.xml -Duse_different_logback=sbst_logback.xml com.evosuite.junitcontest.Main

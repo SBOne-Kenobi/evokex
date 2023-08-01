@@ -274,7 +274,7 @@ public class Properties {
 
     @Parameter(key = "p_reflection_on_private", group = "Test Creation", description = "Probability [0,1] of using reflection to set private fields or call private methods")
     @DoubleValue(min = 0.0, max = 1.0)
-    public static double P_REFLECTION_ON_PRIVATE = 0.0; // Optimal value: 0.5
+    public static double P_REFLECTION_ON_PRIVATE = 0.5; // Optimal value: 0.5
 
     @Parameter(key = "reflection_start_percent", group = "Test Creation", description = "Percentage [0,1] of search budget after which reflection fields/methods handling is activated")
     @DoubleValue(min = 0.0, max = 1.0)
@@ -282,7 +282,7 @@ public class Properties {
 
 	@Parameter(key = "p_functional_mocking", group = "Test Creation", description = "Probability [0,1] of using functional mocking (eg Mockito) when creating object instances")
 	@DoubleValue(min = 0.0, max = 1.0)
-	public static double P_FUNCTIONAL_MOCKING = 0.0; // Optimal value: 0.8
+	public static double P_FUNCTIONAL_MOCKING = 0.8; // Optimal value: 0.8
 
 	@Parameter(key = "mock_if_no_generator", group = "Test Creation", description = "Allow mock objects if there are no generators")
 	public static boolean MOCK_IF_NO_GENERATOR = true;
@@ -455,10 +455,10 @@ public class Properties {
 	public static boolean LOCAL_SEARCH_SELECTIVE_PRIMITIVES = false; //TODO what is this? unclear
 
 	@Parameter(key = "local_search_expand_tests", group = "Local Search", description = "Expand test cases before applying local search such that each primitive is used only once")
-	public static boolean LOCAL_SEARCH_EXPAND_TESTS = true;
+	public static boolean LOCAL_SEARCH_EXPAND_TESTS = false;
 
 	@Parameter(key = "local_search_ensure_double_execution", group = "Local Search", description = "If a branch is only executed once by a test suite, duplicate that test")
-	public static boolean LOCAL_SEARCH_ENSURE_DOUBLE_EXECUTION = true;
+	public static boolean LOCAL_SEARCH_ENSURE_DOUBLE_EXECUTION = false;
 
 	@Parameter(key = "local_search_restore_coverage", group = "Local Search", description = "Add tests that cover branches already covered in the past")
 	public static boolean LOCAL_SEARCH_RESTORE_COVERAGE = false; // Not needed with archive
