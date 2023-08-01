@@ -1159,7 +1159,7 @@ public class Properties {
     public static int MAX_REPLACE_MUTANTS = 100;
 
     @Parameter(key = "test_dir", group = "Output", description = "Directory in which to place JUnit tests")
-    public static String TEST_DIR = "evosuite-tests";
+    public static String TEST_DIR = "temp/testcases";
 
     @Parameter(key = "write_cfg", group = "Output", description = "Create CFG graphs")
     public static boolean WRITE_CFG = false;
