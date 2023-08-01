@@ -51,8 +51,9 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
         get() = ConstantValue(testCase, GenericClassFactory.get(Class::class.java.sutClass), this)
 
     private val KFGType.java: Type
-        get() = when (this) {
-            is ArrayType -> GenericArrayTypeImpl.createArrayType(component.java)
+        get() = when {
+            isVoid -> Void.TYPE
+            this is ArrayType -> GenericArrayTypeImpl.createArrayType(component.java)
             else -> loader.loadClass(this)
         }
 
@@ -72,12 +73,20 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     fun generateTestCall(method: Method, parameters: Parameters<ActionSequence>) {
-        generateMethodStatement(method, parameters.instance, parameters.arguments)
+        generateCall(method, parameters.instance, parameters.arguments)
     }
 
     private fun ActionSequence.generateAndGetRef(): VariableReference = when (this) {
-        is PrimaryValue<*> -> if (value == null) {
-            NullReference(testCase, Object::class.java.sutClass)
+        is PrimaryValue<*> -> if (value == null) { // evosuite lol (issue with getStPosition for NullStatement)
+            if (name in refs) {
+                ref
+            } else {
+                NullStatement(testCase, Object::class.java.sutClass).let {
+                    +it
+                    refs[name] = it.returnValue
+                    it.returnValue
+                }
+            }
         } else {
             ConstantValue(testCase, GenericClassFactory.get(value!!.javaClass), value).apply {
                 changeClassLoader(loader)
@@ -92,7 +101,7 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateTestCall(testCall: TestCall) {
-        generateMethodStatement(testCall.test, testCall.instance, testCall.args)
+        generateCall(testCall.test, testCall.instance, testCall.args)
     }
 
     private fun generateStatementsFromReflection(owner: ReflectionList, call: ReflectionCall) {
@@ -185,16 +194,8 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
         +AssignmentStatement(testCase, index, value)
     }
 
-    private fun generateConstructorCall(owner: ActionSequence, constructor: Method, args: List<ActionSequence>) {
-        val refArgs = args.map { it.generateAndGetRef() }
-        val type = constructor.klass.java
-        val genericConstructor = GenericConstructor(type.getConstructor(constructor, loader), type)
-        val ref = owner.createRef(type)
-        +ConstructorStatement(testCase, genericConstructor, ref, refArgs)
-    }
-
     private fun generateAction(owner: ActionList, action: ConstructorCall) {
-        generateConstructorCall(owner, action.constructor, action.args)
+        generateCall(action.constructor, null, action.args, owner)
     }
 
     private fun generateAction(owner: ActionList, action: DefaultConstructorCall) {
@@ -209,11 +210,11 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateAction(owner: ActionList, action: ExternalConstructorCall) {
-        generateConstructorCall(owner, action.constructor, action.args)
+        generateCall(action.constructor, null, action.args, owner)
     }
 
     private fun generateAction(owner: ActionList, action: ExternalMethodCall) {
-        generateMethodStatement(action.method, action.instance, action.args, owner)
+        generateCall(action.method, action.instance, action.args, owner)
     }
 
     private fun generateAction(owner: ActionList, action: FieldSetter) {
@@ -230,7 +231,7 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateAction(owner: ActionList, action: MethodCall) {
-        generateMethodStatement(action.method, owner, action.args)
+        generateCall(action.method, owner, action.args)
     }
 
     private fun generateNewArray(owner: ActionSequence, type: Type, length: Int): ArrayReference {
@@ -273,10 +274,10 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateAction(action: StaticMethodCall) {
-        generateMethodStatement(action.method, null, action.args)
+        generateCall(action.method, null, action.args)
     }
 
-    private fun generateMethodStatement(
+    private fun generateCall(
         method: Method,
         callee: ActionSequence?,
         args: List<ActionSequence>,
@@ -285,12 +286,21 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
         val type = method.klass.java
         val calleeRef = callee?.generateAndGetRef()
         val argsRef = args.map { it.generateAndGetRef() }
-        val genericMethod = GenericMethod(type.getMethod(method, loader), type)
         val retRef = ret?.createRef(method.returnType.java)
-        if (retRef != null) {
-            +MethodStatement(testCase, genericMethod, calleeRef, argsRef, retRef)
+        if (method.isConstructor) {
+            val genericConstructor = GenericConstructor(type.getConstructor(method, loader), type)
+            if (retRef != null) {
+                +ConstructorStatement(testCase, genericConstructor, retRef, argsRef)
+            } else {
+                +ConstructorStatement(testCase, genericConstructor, argsRef)
+            }
         } else {
-            +MethodStatement(testCase, genericMethod, calleeRef, argsRef)
+            val genericMethod = GenericMethod(type.getMethod(method, loader), type)
+            if (retRef != null) {
+                +MethodStatement(testCase, genericMethod, calleeRef, argsRef, retRef)
+            } else {
+                +MethodStatement(testCase, genericMethod, calleeRef, argsRef)
+            }
         }
     }
 

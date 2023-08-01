@@ -84,6 +84,7 @@ object KexService {
         defaultTestCase: DefaultTestCase,
         kexObserver: KexObserver
     ): ExecutionResult? {
+        logger.info("Execute kex concolic execution")
         defaultTestCase.changeClassLoader(loader)
 
         val originalExecutionObservers = TestCaseExecutor.getInstance().executionObservers
@@ -98,6 +99,8 @@ object KexService {
             null
         } finally {
             TestCaseExecutor.getInstance().executionObservers = originalExecutionObservers
+        }.also {
+            logger.info("Kex execution result: $it")
         }
     }
 
