@@ -11,7 +11,7 @@ import org.evosuite.testcase.DefaultTestCase
 import org.evosuite.testcase.execution.ExecutionResult
 import org.evosuite.testcase.execution.TestCaseExecutor
 import org.slf4j.LoggerFactory
-import org.vorpal.research.kex.compile.JavaCompilerDriver
+import org.vorpal.research.kex.compile.CompilerHelper
 import org.vorpal.research.kex.config.FileConfig
 import org.vorpal.research.kex.config.RuntimeConfig
 import org.vorpal.research.kex.config.kexConfig
@@ -70,8 +70,8 @@ object KexService {
         }
         val reflectionFile =
             kexConfig.testcaseDirectory / pack.asmString / "${ReflectionUtilsPrinter.REFLECTION_UTILS_CLASS}.java"
-        val driver = JavaCompilerDriver(emptyList(), compileDir)
-        driver.compile(listOf(reflectionFile))
+        val compiler = CompilerHelper(ctx)
+        compiler.compileFile(reflectionFile)
 
         ClassPathHacker.addURL(compileDir.toUri().toURL())
 

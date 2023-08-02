@@ -32,7 +32,7 @@
 	</appender>
 
 	<appender name="STDERR_MASTER" class="ch.qos.logback.core.FileAppender">
-		<file>err.logs</file>
+		<file>err.log</file>
     	<append>true</append>		<filter class="ch.qos.logback.classic.filter.LevelFilter">
 			<level>ERROR</level>
 			<onMatch>ACCEPT</onMatch>

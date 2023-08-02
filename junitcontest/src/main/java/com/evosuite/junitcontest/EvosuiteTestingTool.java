@@ -27,13 +27,13 @@ public class EvosuiteTestingTool implements ITestingTool {
     @Override
     public List<File> getExtraClassPath() {
         List<File> files = new ArrayList();
+        files.add(new File("sbst_loggers"));
         File evosuite = new File("master/target", "evosuite-master-1.1.0.jar");
         if (!evosuite.exists()) {
             System.err.println("Wrong EvoSuite jar setting, jar is not at: " + evosuite.getAbsolutePath());
         } else {
             files.add(evosuite);
         }
-        files.add(new File("/"));
         return files;
     }
 
