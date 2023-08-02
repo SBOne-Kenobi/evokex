@@ -548,9 +548,8 @@ public class FunctionalMockStatement extends EntityWithParametersStatement {
     @Override
     public Statement copy(TestCase newTestCase, int offset) {
 
-
         FunctionalMockStatement copy = new FunctionalMockStatement(
-                newTestCase, retval.getType(), GenericClassFactory.get(targetClass));
+                newTestCase, retval.getType(), new GenericClass(targetClass));
 
         for (VariableReference r : this.parameters) {
             copy.parameters.add(r.copy(newTestCase, offset));

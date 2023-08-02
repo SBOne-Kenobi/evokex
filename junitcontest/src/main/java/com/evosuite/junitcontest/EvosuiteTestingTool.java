@@ -27,7 +27,7 @@ public class EvosuiteTestingTool implements ITestingTool {
     @Override
     public List<File> getExtraClassPath() {
         List<File> files = new ArrayList();
-        File evosuite = new File("master/target", "evosuite-master-1.2.0.jar");
+        File evosuite = new File("master/target", "evosuite-master-1.1.0.jar");
         if (!evosuite.exists()) {
             System.err.println("Wrong EvoSuite jar setting, jar is not at: " + evosuite.getAbsolutePath());
         } else {

@@ -46,9 +46,9 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     private val ActionSequence.asInt: Int get() = (this as PrimaryValue<*>).value as Int
     private val Class<*>.sutClass: Class<*> get() = loader.loadClass(name)
     private val String.asConstantValue
-        get() = ConstantValue(testCase, GenericClassFactory.get(String::class.java.sutClass), this)
+        get() = ConstantValue(testCase, GenericClass(String::class.java.sutClass), this)
     private val Class<*>.asConstantValue
-        get() = ConstantValue(testCase, GenericClassFactory.get(Class::class.java.sutClass), this)
+        get() = ConstantValue(testCase, GenericClass(Class::class.java.sutClass), this)
 
     private val KFGType.java: Type
         get() = when {
@@ -88,7 +88,7 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
                 }
             }
         } else {
-            ConstantValue(testCase, GenericClassFactory.get(value!!.javaClass), value).apply {
+            ConstantValue(testCase, GenericClass(value!!.javaClass), value).apply {
                 changeClassLoader(loader)
             }
         }
@@ -235,7 +235,7 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateNewArray(owner: ActionSequence, type: Type, length: Int): ArrayReference {
-        val arrayReference = ArrayReference(testCase, GenericClassImpl(type), length)
+        val arrayReference = ArrayReference(testCase, GenericClass(type), length)
         refs[owner.name] = arrayReference
         +ArrayStatement(testCase, arrayReference, intArrayOf(length))
         return arrayReference
