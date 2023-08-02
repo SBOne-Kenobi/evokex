@@ -100,7 +100,7 @@ object KexService {
         } finally {
             TestCaseExecutor.getInstance().executionObservers = originalExecutionObservers
         }.also {
-            logger.info("Kex execution result: $it")
+            logger.debug("Kex execution is success: {}", it != null)
         }
     }
 
