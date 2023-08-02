@@ -33,6 +33,7 @@ public class EvosuiteTestingTool implements ITestingTool {
         } else {
             files.add(evosuite);
         }
+        files.add(new File("/"));
         return files;
     }
 
