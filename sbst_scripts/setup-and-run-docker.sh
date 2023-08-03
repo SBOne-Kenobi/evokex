@@ -19,10 +19,10 @@ docker run --rm -d \
   -v "$TOOL_HOME":/home/"$TOOL_NAME" \
   -v "$BENCH_PATH":/var/benchmarks \
   --name="$TOOL_NAME" \
-  -it junitcontest/infrastructure:latest
+  -it junitcontest/infrastructure:latest > /dev/null
 
-docker cp "$RUN" "$TOOL_NAME":/usr/local/bin/
+docker cp "$RUN" "$TOOL_NAME":/usr/local/bin/ > /dev/null
 
 docker exec -w /home/"$TOOL_NAME" "$TOOL_NAME" "$RUN" "$TOOL_NAME" "$RUNS_NUMBER" "$TIME_BUDGET"
 
-docker stop "$TOOL_NAME"
+docker stop "$TOOL_NAME" > /dev/null
