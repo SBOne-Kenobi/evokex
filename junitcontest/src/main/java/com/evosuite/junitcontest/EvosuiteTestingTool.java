@@ -98,7 +98,7 @@ public class EvosuiteTestingTool implements ITestingTool {
             System.err.println("JUnit     : " + junit);
             System.err.println("Write     : " + write);
             List<String> commands = new ArrayList();
-            commands.addAll(Arrays.asList("-generateSuite",
+            commands.addAll(Arrays.asList("-generateMOSuite",
                     "-projectCP=" + this.cutClassPath,
                     "-class", cName,
                     "-Dshow_progress=false",

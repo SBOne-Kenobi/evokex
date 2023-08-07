@@ -108,7 +108,7 @@
 	<!-- for a specific logger, enables all the logging. this is useful when
 		we are debugging a particular class -->
 
-	<logger name="${log.target:-org.evosuite.kex}" level="ALL">
+	<logger name="${log.target:-NOTHING}" level="ALL">
 		<appender-ref ref="STDOUT_${evosuite.log.appender:-MASTER}" />
 		<appender-ref ref="STDERR_${evosuite.log.appender:-MASTER}" />
 	</logger>

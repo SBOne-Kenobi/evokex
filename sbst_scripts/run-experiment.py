@@ -9,12 +9,13 @@ from typing import List, Tuple, TextIO
 
 from dataclass_csv import DataclassWriter
 
-SCRIPT_DIR = Path(__file__).absolute().parent
-EVOKEX_DIR = SCRIPT_DIR.parent
+SCRIPTS_DIR = Path(__file__).absolute().parent
+PROJECT_DIR = SCRIPTS_DIR.parent
+DEFAULT_TOOL_NAME = 'evosuite-mo'
 
 
-def init_evokex() -> str:
-    result = Path(tempfile.gettempdir()) / 'light-weight-evokex' / 'evokex'
+def init_default_tool() -> str:
+    result = Path(tempfile.gettempdir()) / 'default-tool' / DEFAULT_TOOL_NAME
     if not result.exists():
         result.mkdir(parents=True)
         for path in [
@@ -23,7 +24,7 @@ def init_evokex() -> str:
             'junitcontest/target/evosuite-junitcontest-1.1.0.jar',
             'kex/runtime-deps/', 'sbst_loggers/'
         ]:
-            src = EVOKEX_DIR / path
+            src = PROJECT_DIR / path
             dst = result / path
             if src.is_dir():
                 shutil.copytree(src, dst, copy_function=shutil.copy)
@@ -45,7 +46,7 @@ def run_experiment(tool: str, benchmarks: str, output: str, runs: int, timeouts:
     print('---- Run experiment')
     subprocess.run(
         ['./run-experiment.sh', tool, benchmarks, output, str(runs), *[str(i) for i in timeouts]],
-        cwd=SCRIPT_DIR
+        cwd=SCRIPTS_DIR
     )
     print('---- Experiment finished')
 
@@ -58,19 +59,34 @@ class RawStatisticsItem:
     run_number: int
     cut: str
 
+    tests: int
     uncompilable: int
     broken: int
     failing: int
 
-    lines_coverage: float
-    branches_coverage: float
-    mutants_coverage: float
-    mutants_killed: float
+    lines_total: int
+    lines_covered: int
+    lines_coverage_ratio: float
+
+    branches_total: int
+    branches_covered: int
+    branches_coverage_ratio: float
+
+    mutants_total: int
+    mutants_covered: int
+    mutants_coverage_ratio: float
+
+    mutants_killed: int
+    mutants_killed_ratio: float
 
 
 def parse_key_value(f: TextIO) -> Tuple[str, str]:
     key, value = re.search(r'^([^:]+):\s(.+)$', f.readline().strip()).groups()
     return key, value
+
+
+def parse_n_values(f: TextIO, n: int) -> List[str]:
+    return [parse_key_value(f)[1] for _ in range(n)]
 
 
 def skip(f: TextIO, n: int):
@@ -86,30 +102,27 @@ def parse_raw_statistics_items(arr: List[RawStatisticsItem], file: Path):
                 line = f.readline()
                 continue
 
-            _, tool = parse_key_value(f)
+            tool, bench, cut, run = parse_n_values(f, 4)
             tool, timeout = re.search(r'^(.+)-(\d+)$', tool).groups()
-            _, bench = parse_key_value(f)
-            _, cut = parse_key_value(f)
-            _, run = parse_key_value(f)
-            skip(f, 4)
-            _, uncompilable = parse_key_value(f)
-            _, broken = parse_key_value(f)
-            _, failing = parse_key_value(f)
-            skip(f, 2)
-            _, lines_coverage = parse_key_value(f)
-            skip(f, 2)
-            _, branches_coverage = parse_key_value(f)
-            skip(f, 2)
-            _, mutants_coverage = parse_key_value(f)
-            skip(f, 1)
-            _, mutants_killed = parse_key_value(f)
+
+            skip(f, 3)
+
+            tests, uncompilable, broken, failing, \
+                lines_total, lines_covered, lines_coverage_ratio, \
+                branches_total, branches_covered, branches_coverage_ratio, \
+                mutants_total, mutants_covered, mutants_coverage_ratio, \
+                mutants_killed, mutants_killed_ratio \
+                = parse_n_values(f, 15)
+
             skip(f, 1)
 
             arr.append(RawStatisticsItem(
                 tool, int(timeout), bench, int(run),
-                cut, int(uncompilable), int(broken), int(failing),
-                float(lines_coverage), float(branches_coverage),
-                float(mutants_coverage), float(mutants_killed),
+                cut, int(tests), int(uncompilable), int(broken), int(failing),
+                int(lines_total), int(lines_covered), float(lines_coverage_ratio),
+                int(branches_total), int(branches_covered), float(branches_coverage_ratio),
+                int(mutants_total), int(mutants_covered), float(mutants_coverage_ratio),
+                int(mutants_killed), float(mutants_killed_ratio)
             ))
 
             line = f.readline()
@@ -133,7 +146,7 @@ def build_csv(results_dir: str, output: str):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Run big experiment using specified tool and project')
-    parser.add_argument('--tool', help='path to tool (default: uses light-weight version of kexised-evosuite)')
+    parser.add_argument('--tool', help='path to tool (default: creates default tool)')
     parser.add_argument('--benchmarks', required=True, help='path to benchmarks')
     parser.add_argument('--csv', default='output.csv', help='output .csv file (default: output.csv)')
     parser.add_argument('--output', help='path to run results (default: uses temporary directory)')
@@ -149,7 +162,7 @@ def main():
 
     tool = args.tool
     if tool is None:
-        tool = init_evokex()
+        tool = init_default_tool()
 
     if output is None:
         output = init_tempdir()

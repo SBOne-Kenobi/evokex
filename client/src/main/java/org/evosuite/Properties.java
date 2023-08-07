@@ -349,7 +349,7 @@ public class Properties {
     public static boolean MAP_ELITES_IGNORE_FEATURES = false;
 
 	@Parameter(key = "algorithm", group = "Search Algorithm", description = "Search algorithm")
-	public static Algorithm ALGORITHM = Algorithm.CELLULAR_GA;
+	public static Algorithm ALGORITHM = Algorithm.DYNAMOSA;
 
 	/** Different models of neighbourhoods in the Cellular GA **/
 	public enum CGA_Models{
@@ -441,7 +441,7 @@ public class Properties {
 	// --------- LS ---------
 
 	@Parameter(key = "local_search_rate", group = "Local Search", description = "Apply local search at every X generation")
-	public static int LOCAL_SEARCH_RATE = 1;
+	public static int LOCAL_SEARCH_RATE = -1;
 
 	@Parameter(key = "local_search_probability", group = "Local Search", description = "Probability of applying local search at every X generation")
     @DoubleValue(min = 0.0, max = 1.0)
@@ -1498,7 +1498,7 @@ public class Properties {
 	}
 
 	@Parameter(key = "strategy", group = "Runtime", description = "Which mode to use")
-	public static Strategy STRATEGY = Strategy.EVOSUITE;
+	public static Strategy STRATEGY = Strategy.MOSUITE;
 
 	@Parameter(key = "process_communication_port", group = "Runtime", description = "Port at which the communication with the external process is done")
 	public static int PROCESS_COMMUNICATION_PORT = -1;
@@ -1520,7 +1520,7 @@ public class Properties {
 
 
 	@Parameter(key = "client_on_thread", group = "Runtime", description = "Run client process on same JVM of master in separate thread. To be used only for debugging purposes")
-	public static volatile boolean CLIENT_ON_THREAD = true;
+	public static volatile boolean CLIENT_ON_THREAD = false;
 
 
 	@Parameter(key = "is_running_a_system_test", group = "Runtime", description = "Specify that a system test is running. To be used only for debugging purposes")
