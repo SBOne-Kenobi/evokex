@@ -30,6 +30,7 @@ import org.evosuite.classpath.ClassPathHacker;
 import org.evosuite.classpath.ClassPathHandler;
 import org.evosuite.classpath.ResourceList;
 import org.evosuite.instrumentation.BytecodeInstrumentation;
+import org.evosuite.kex.KexService;
 import org.evosuite.result.TestGenerationResult;
 import org.evosuite.result.TestGenerationResultBuilder;
 import org.evosuite.rmi.MasterServices;
@@ -54,7 +55,7 @@ public class TestGeneration {
 	
 	public static List<List<TestGenerationResult>> executeTestGeneration(Options options, List<String> javaOpts,
 			CommandLine line) {
-		
+
 		Strategy strategy = getChosenStrategy(javaOpts, line);
 
 		if (strategy == null) {
@@ -75,6 +76,9 @@ public class TestGeneration {
 			return results;
 		}
 
+		if (!Properties.CLIENT_ON_THREAD) {
+			KexService.init(false);
+		}
 
 		if (line.hasOption("class")) {
 			results.addAll(generateTests(strategy, line.getOptionValue("class"), javaOpts));

@@ -24,12 +24,15 @@ import org.evosuite.ga.ChromosomeFactory;
 import org.evosuite.ga.comparators.OnlyCrowdingComparator;
 import org.evosuite.ga.metaheuristics.mosa.structural.MultiCriteriaManager;
 import org.evosuite.ga.operators.ranking.CrowdingDistance;
+import org.evosuite.kex.KexTestGenerator;
+import org.evosuite.testcase.TestCase;
 import org.evosuite.testcase.TestChromosome;
 import org.evosuite.utils.LoggingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -50,6 +53,11 @@ public class DynaMOSA extends AbstractMOSA {
 
 	protected CrowdingDistance<TestChromosome> distance = new CrowdingDistance<>();
 
+	private int stallLen;
+	private int maxStallLen = 8;
+	private boolean wasTargeted;
+	private final int maxGenerateTests = -1;
+
 	/**
 	 * Constructor based on the abstract class {@link AbstractMOSA}.
 	 *
@@ -62,11 +70,36 @@ public class DynaMOSA extends AbstractMOSA {
 	/** {@inheritDoc} */
 	@Override
 	protected void evolve() {
+		List<TestChromosome> additional = Collections.emptyList();
+		if (stallLen > maxStallLen) {
+			logger.debug("Run test generation using kex");
+			wasTargeted = true;
+			additional = new ArrayList<>(this.population);
+
+			KexTestGenerator generator = new KexTestGenerator(this.population);
+			this.population.clear();
+			int i = 0;
+			while (maxGenerateTests == -1 || i < maxGenerateTests) {
+				TestCase testCase = generator.generateTest();
+				if (testCase == null) {
+					break;
+				}
+				TestChromosome test = new TestChromosome();
+				test.setTestCase(testCase);
+				this.population.add(test);
+				i++;
+			}
+			logger.debug("Test cases added: {}", i);
+
+			stallLen = 0;
+		}
+
 		// Generate offspring, compute their fitness, update the archive and coverage goals.
 		List<TestChromosome> offspringPopulation = this.breedNextGeneration();
 
 		// Create the union of parents and offspring
-		List<TestChromosome> union = new ArrayList<>(this.population.size() + offspringPopulation.size());
+		List<TestChromosome> union = new ArrayList<>(additional.size() + this.population.size() + offspringPopulation.size());
+		union.addAll(additional);
 		union.addAll(this.population);
 		union.addAll(offspringPopulation);
 
@@ -163,8 +196,24 @@ public class DynaMOSA extends AbstractMOSA {
 
 		// Evolve the population generation by generation until all gaols have been covered or the
 		// search budget has been consumed.
+		stallLen = 0;
 		while (!isFinished() && this.goalsManager.getUncoveredGoals().size() > 0) {
+			wasTargeted = false;
+			int oldCoverage = this.goalsManager.getCoveredGoals().size();
+
 			this.evolve();
+
+			int newCoverage = this.goalsManager.getCoveredGoals().size();
+			if (oldCoverage == newCoverage) {
+				if (wasTargeted) {
+					maxStallLen *= 2;
+				} else {
+					stallLen++;
+				}
+			} else {
+				stallLen = 0;
+			}
+
 			this.notifyIteration();
 		}
 

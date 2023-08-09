@@ -35,13 +35,22 @@ class KexReflectionStatement private constructor(
     ) : this(tc, getMethod(methodName), parameters, retvar)
 
     companion object {
-        private val loader = TestGenerationContext.getInstance().classLoaderForSUT
-        private val utils = KexService.reflectionUtils.klass.run {
-            loader.loadClass("$pkg.$name")
+        private val loader by lazy { TestGenerationContext.getInstance().classLoaderForSUT }
+
+        private val utils by lazy {
+            KexService.reflectionUtils.klass.run {
+                loader.loadClass("$pkg.$name")
+            }
         }
-        private val methods = mutableMapOf(
-            "newInstance" to GenericMethod(utils.getMethod("newInstance", loader.loadClass("java.lang.String")), utils)
-        )
+
+        private val methods by lazy {
+            mutableMapOf(
+                "newInstance" to GenericMethod(
+                    utils.getMethod("newInstance", loader.loadClass("java.lang.String")),
+                    utils
+                )
+            )
+        }
 
         private fun getMethod(methodName: String): GenericMethod = methods.compute(methodName) { _, method ->
             method?.copy() ?: GenericMethod(utils.methods.first { it.name == methodName }, utils)

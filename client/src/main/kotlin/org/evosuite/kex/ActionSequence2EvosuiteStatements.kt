@@ -16,6 +16,7 @@ import org.vorpal.research.kex.util.loadClass
 import org.vorpal.research.kfg.ir.Field
 import org.vorpal.research.kfg.ir.Method
 import org.vorpal.research.kfg.type.ArrayType
+import org.vorpal.research.kthelper.assert.unreachable
 import java.lang.reflect.Type
 import kotlin.time.ExperimentalTime
 
@@ -65,7 +66,7 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
             is ActionList -> actionSequence.list.forEach { generateStatementsFromAction(actionSequence, it) }
             is ReflectionList -> actionSequence.list.forEach { generateStatementsFromReflection(actionSequence, it) }
             is TestCall -> generateTestCall(actionSequence)
-            is UnknownSequence -> TODO("not supported lol")
+            is UnknownSequence -> unreachable("not supported lol")
             is PrimaryValue<*>, is StringValue -> {
                 // nothing to generate
             }
@@ -206,7 +207,11 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateAction(owner: ActionList, action: EnumValueCreation) {
-        TODO("support Enums")
+        val type = action.klass.java
+        val statement = PrimitiveStatement.getPrimitiveStatement(testCase, type)
+        statement.value = type.enumConstants.find { (it as Enum<*>).name == action.name }
+        refs[owner.name] = statement.returnValue
+        +statement
     }
 
     private fun generateAction(owner: ActionList, action: ExternalConstructorCall) {

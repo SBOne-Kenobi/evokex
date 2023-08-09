@@ -455,7 +455,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 */
 	private void applyLocalSearch(TestSuiteChromosome suite, LocalSearchObjective<TestSuiteChromosome> objective) {
 
-        TestCase newTest = (new KexTestGenerator()).generateTest(suite);
+        TestCase newTest = (new KexTestGenerator(suite.getTestChromosomes())).generateTest();
         if (newTest != null) {
             suite.addTest(newTest);
         }

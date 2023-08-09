@@ -71,7 +71,7 @@ public class ClientProcess {
 		JDKClassResetter.init();
 		Sandbox.setCheckForInitialization(Properties.SANDBOX);
 		MockFramework.enable();
-        KexService.init();
+        KexService.init(true);
 
 		if (TestSuiteWriterUtils.needToUseAgent() && (Properties.JUNIT_CHECK == Properties.JUnitCheckValues.TRUE || Properties.JUNIT_CHECK == Properties.JUnitCheckValues.OPTIONAL)) {
 			initializeToolJar();

@@ -50,33 +50,37 @@ object KexService {
     }
 
     @JvmStatic
-    fun init() {
+    fun init(onClient: Boolean) {
         kexConfig.initialize(RuntimeConfig, FileConfig("kex.ini"))
 
-        val instrumentedDir = kexConfig.instrumentedCodeDirectory.toUri().toURL()
-        val classPaths = ClassPathHandler.getInstance().classPathElementsForTargetProject.asList()
+        if (onClient) {
+            val instrumentedDir = kexConfig.instrumentedCodeDirectory.toUri().toURL()
+            val classPaths = ClassPathHandler.getInstance().classPathElementsForTargetProject.asList()
 
-        launcher = ConcolicLauncher(classPaths, Properties.TARGET_CLASS)
-        loader = KexClassLoader(arrayOf(instrumentedDir))
+            launcher = ConcolicLauncher(classPaths, Properties.TARGET_CLASS)
+            loader = KexClassLoader(arrayOf(instrumentedDir))
+        }
 
-        initReflectionUtils()
+        initReflectionUtils(onClient)
     }
 
-    private fun initReflectionUtils() {
-        val pack = Properties.TARGET_CLASS.substringBeforeLast('.', "")
-        reflectionUtils = ReflectionUtilsPrinter.reflectionUtils(pack)
+    private fun initReflectionUtils(onClient: Boolean) {
         val compileDir = kexConfig.compiledCodeDirectory.also {
             it.toFile().mkdirs()
         }
-        val reflectionFile =
-            kexConfig.testcaseDirectory / pack.asmString / "${ReflectionUtilsPrinter.REFLECTION_UTILS_CLASS}.java"
-        val compiler = CompilerHelper(ctx)
-        compiler.compileFile(reflectionFile)
-
         ClassPathHacker.addURL(compileDir.toUri().toURL())
 
         val cp = ClassPathHandler.getInstance().evoSuiteClassPath.split(File.pathSeparator).toTypedArray()
         ClassPathHandler.getInstance().setEvoSuiteClassPath(cp + compileDir.absolutePathString())
+
+        if (onClient) {
+            val pack = Properties.TARGET_CLASS.substringBeforeLast('.', "")
+            reflectionUtils = ReflectionUtilsPrinter.reflectionUtils(pack)
+            val reflectionFile =
+                kexConfig.testcaseDirectory / pack.asmString / "${ReflectionUtilsPrinter.REFLECTION_UTILS_CLASS}.java"
+            val compiler = CompilerHelper(ctx)
+            compiler.compileFile(reflectionFile)
+        }
     }
 
     @JvmStatic
