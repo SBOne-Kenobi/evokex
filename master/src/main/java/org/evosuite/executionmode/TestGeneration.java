@@ -30,6 +30,7 @@ import org.evosuite.classpath.ClassPathHacker;
 import org.evosuite.classpath.ClassPathHandler;
 import org.evosuite.classpath.ResourceList;
 import org.evosuite.instrumentation.BytecodeInstrumentation;
+import org.evosuite.kex.KexInitMode;
 import org.evosuite.kex.KexService;
 import org.evosuite.result.TestGenerationResult;
 import org.evosuite.result.TestGenerationResultBuilder;
@@ -74,10 +75,6 @@ public class TestGeneration {
 			LoggingUtils.getEvoLogger().error("No classpath has been defined for the target project.\nOn the command line you can set it with the -projectCP option\n");
             Help.execute(options);
 			return results;
-		}
-
-		if (!Properties.CLIENT_ON_THREAD) {
-			KexService.init(false);
 		}
 
 		if (line.hasOption("class")) {
@@ -388,6 +385,8 @@ public class TestGeneration {
 		Properties.getInstance();// should force the load, just to be sure
 		Properties.TARGET_CLASS = target;
 		Properties.PROCESS_COMMUNICATION_PORT = port;
+
+		KexService.init(KexInitMode.MASTER_INIT);
 
         for (int i = 0; i < Properties.NUM_PARALLEL_CLIENTS; i++) {
             List<String> cmdLineClone = new ArrayList<>(cmdLine);

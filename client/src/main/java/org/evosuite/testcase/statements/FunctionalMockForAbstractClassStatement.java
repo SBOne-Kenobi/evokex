@@ -57,7 +57,9 @@ public class FunctionalMockForAbstractClassStatement extends FunctionalMockState
             copy.parameters.add(r.copy(newTestCase, offset));
         }
 
-        copy.listener = this.listener; //no need to clone, as only read, and created new instance at each new execution
+        if (this.listener != null) {
+            copy.listener = this.listener.copy();
+        }
 
         for (MethodDescriptor md : this.mockedMethods) {
             copy.mockedMethods.add(md.getCopy());

@@ -1,6 +1,10 @@
 package com.evosuite.junitcontest;
 
 import org.evosuite.EvoSuite;
+import org.evosuite.Properties;
+import org.evosuite.kex.KexInitMode;
+import org.evosuite.kex.KexService;
+import org.vorpal.research.kex.config.RuntimeConfig;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,6 +59,8 @@ public class EvosuiteTestingTool implements ITestingTool {
         }
         this.cutClassPath = sb.toString();
         this.evosuite = new EvoSuite();
+        Properties.CP = this.cutClassPath;
+        KexService.init(KexInitMode.PRE_INIT);
     }
 
     /**
@@ -89,6 +95,7 @@ public class EvosuiteTestingTool implements ITestingTool {
                 write = 60L;
             }
             long search = timeBudget - (initialization + minimization + assertions + junit + write);
+            RuntimeConfig.INSTANCE.setValue("smt", "timeout", (int) (halfTime / 5L));
 
             System.err.println("Search    : " + search);
             System.err.println("Init      : " + initialization);

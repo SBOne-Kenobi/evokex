@@ -19,7 +19,7 @@ import org.vorpal.research.kex.trace.symbolic.SymbolicState
 import org.vorpal.research.kfg.ir.Method
 import kotlin.time.ExperimentalTime
 
-private inline fun <T> withoutSandbox(block: () -> T): T {
+internal inline fun <T> withoutSandbox(block: () -> T): T {
     // FIXME: do smth else here with security manager
     val mode = RuntimeSettings.sandboxMode
     RuntimeSettings.sandboxMode = Sandbox.SandboxMode.OFF

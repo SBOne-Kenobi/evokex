@@ -25,7 +25,8 @@ class KexReflectionStatement private constructor(
     retvar: VariableReference? = null
 ) : MethodStatement(
     tc, method, null,
-    parameters, retvar ?: VariableReferenceImpl(tc, method.returnType)
+    parameters.toMutableList(),
+    retvar ?: VariableReferenceImpl(tc, method.returnType)
 ) {
 
     constructor(

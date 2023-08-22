@@ -47,9 +47,9 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     private val ActionSequence.asInt: Int get() = (this as PrimaryValue<*>).value as Int
     private val Class<*>.sutClass: Class<*> get() = loader.loadClass(name)
     private val String.asConstantValue
-        get() = ConstantValue(testCase, GenericClass(String::class.java.sutClass), this)
+        get() = ConstantValue(testCase, GenericClass(String::class.java), this)
     private val Class<*>.asConstantValue
-        get() = ConstantValue(testCase, GenericClass(Class::class.java.sutClass), this)
+        get() = ConstantValue(testCase, GenericClass(Class::class.java), this)
 
     private val KFGType.java: Type
         get() = when {
@@ -150,11 +150,12 @@ class ActionSequence2EvosuiteStatements(private val testCase: TestCase) {
     }
 
     private fun generateReflectionSetField(owner: ActionSequence?, field: Field, value: ActionSequence) {
+        val ownerRef = owner?.ref ?: PrimaryValue(null).generateAndGetRef()
         val valueRef = value.generateAndGetRef()
         val method = reflectionUtils.setPrimitiveFieldMap[valueRef.type.typeName] ?: reflectionUtils.setField
         val klass = field.klass.java.asConstantValue
         val name = field.name.asConstantValue
-        val args = listOf(owner?.ref ?: NullReference(testCase, Object::class.java.sutClass), klass, name, valueRef)
+        val args = listOf(ownerRef, klass, name, valueRef)
         +KexReflectionStatement(testCase, method.name, args)
     }
 

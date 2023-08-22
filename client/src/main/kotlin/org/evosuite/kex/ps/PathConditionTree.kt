@@ -84,9 +84,9 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
             when (clause) {
                 is PathClause -> {
                     var initialized = false
-                    if (!prevVertex.isVisited) {
+                    if (!prevVertex.isVisited || clause !in prevVertex) {
                         visited += prevVertex
-                        prevVertex.initBy(state, clause)
+                        prevVertex.initBy(state, clause) // TODO: handle when it was covered
                         initialized = true
                     } else if (prevVertex.isCovered) return
 
@@ -143,7 +143,7 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
     fun PathClause.getOtherBranches(): List<PathClause> = when (type) {
         PathClauseType.NULL_CHECK -> listOf(copy(predicate = predicate.reverseBoolCond()))
         PathClauseType.TYPE_CHECK -> listOf(copy(predicate = predicate.reverseBoolCond()))
-        PathClauseType.OVERLOAD_CHECK -> listOf(copy(predicate = predicate.reverseBoolCond()))
+        PathClauseType.OVERLOAD_CHECK -> listOf() // TODO: how to handle it correctly
         PathClauseType.CONDITION_CHECK -> when (val inst = instruction) {
             is BranchInst -> listOf(copy(predicate = predicate.reverseBoolCond()))
             is SwitchInst -> predicate.getOtherSwitchBranches(inst.branches).map { copy(predicate = it) }

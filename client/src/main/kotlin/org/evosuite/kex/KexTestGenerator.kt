@@ -2,6 +2,7 @@ package org.evosuite.kex
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import org.evosuite.kex.observers.KexStatementObserver
@@ -11,6 +12,7 @@ import org.evosuite.testcase.TestCase
 import org.evosuite.testcase.TestChromosome
 import org.slf4j.LoggerFactory
 import org.vorpal.research.kex.asm.state.PredicateStateAnalysis
+import org.vorpal.research.kex.config.kexConfig
 import org.vorpal.research.kex.descriptor.Descriptor
 import org.vorpal.research.kex.parameters.Parameters
 import org.vorpal.research.kex.reanimator.actionsequence.ActionSequence
@@ -19,6 +21,7 @@ import org.vorpal.research.kex.reanimator.rtUnmapped
 import org.vorpal.research.kex.trace.symbolic.SymbolicState
 import org.vorpal.research.kex.trace.symbolic.protocol.SuccessResult
 import org.vorpal.research.kfg.ir.Method
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -61,16 +64,16 @@ class KexTestGenerator(testChromosomes: List<TestChromosome>) {
     }
 
     fun generateTest(): TestCase? = runBlocking {
-        logger.info("Generating test with kex")
+        logger.debug("Generating test with kex")
 
         while (pathSelector.hasNext()) {
             val state = pathSelector.next()
             val method = pathSelector.lastCandidate.method
-
-            logger.debug("Choose state of {} for test generation:\n{}", method, state)
-
+            val timeout = kexConfig.getIntValue("smt", "timeout", 3)
             try {
-                val parameters = state.checkAndGetParameters(ctx, method) ?: continue
+                val parameters = withTimeoutOrNull(timeout.seconds * 4) {
+                    state.checkAndGetParameters(ctx, method)
+                } ?: continue
                 return@runBlocking generateTest(parameters, method)
             } catch (e: Throwable) {
                 logger.error("Error occurred while generating test for state:\n{}", state, e)
@@ -79,7 +82,7 @@ class KexTestGenerator(testChromosomes: List<TestChromosome>) {
         }
         null
     }.also {
-        logger.debug("Kex produce new test:\n{}", it != null)
+        logger.debug("Kex produce new test:\n{}", it)
     }
 
 

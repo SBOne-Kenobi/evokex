@@ -54,9 +54,9 @@ public class DynaMOSA extends AbstractMOSA {
 	protected CrowdingDistance<TestChromosome> distance = new CrowdingDistance<>();
 
 	private int stallLen;
-	private int maxStallLen = 8;
+	private int maxStallLen = 15;
 	private boolean wasTargeted;
-	private final int maxGenerateTests = -1;
+	private int maxGenerateTests = -1;
 
 	/**
 	 * Constructor based on the abstract class {@link AbstractMOSA}.
@@ -72,12 +72,15 @@ public class DynaMOSA extends AbstractMOSA {
 	protected void evolve() {
 		List<TestChromosome> additional = Collections.emptyList();
 		if (stallLen > maxStallLen) {
-			logger.debug("Run test generation using kex");
+			logger.info("Run test generation using kex");
+			stallLen = 0;
 			wasTargeted = true;
-			additional = new ArrayList<>(this.population);
 
+			additional = new ArrayList<>();
+
+			logger.debug("Constraints collection");
 			KexTestGenerator generator = new KexTestGenerator(this.population);
-			this.population.clear();
+			logger.debug("Start generation");
 			int i = 0;
 			while (maxGenerateTests == -1 || i < maxGenerateTests) {
 				TestCase testCase = generator.generateTest();
@@ -86,12 +89,20 @@ public class DynaMOSA extends AbstractMOSA {
 				}
 				TestChromosome test = new TestChromosome();
 				test.setTestCase(testCase);
-				this.population.add(test);
+				additional.add(test);
+				calculateFitness(test);
+				logger.debug("Covered goals: {}", testCase.getCoveredGoals().size());
 				i++;
 			}
-			logger.debug("Test cases added: {}", i);
+			logger.debug("Test cases generated: {}", additional.size());
 
-			stallLen = 0;
+			if (additional.isEmpty()) {
+				return;
+			}
+
+			List<TestChromosome> temp = additional;
+			additional = this.population;
+			this.population = temp;
 		}
 
 		// Generate offspring, compute their fitness, update the archive and coverage goals.
@@ -204,8 +215,14 @@ public class DynaMOSA extends AbstractMOSA {
 			this.evolve();
 
 			int newCoverage = this.goalsManager.getCoveredGoals().size();
+			if (wasTargeted) {
+				logger.debug("Old coverage: {}", oldCoverage);
+				logger.debug("New coverage: {}", newCoverage);
+			}
+
 			if (oldCoverage == newCoverage) {
 				if (wasTargeted) {
+//					maxGenerateTests *= 2;
 					maxStallLen *= 2;
 				} else {
 					stallLen++;

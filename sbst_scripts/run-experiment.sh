@@ -21,7 +21,5 @@ do
   mkdir -p "$RESULT_PATH" > /dev/null
   cp -r "$TOOL_HOME"/* "$RESULT_PATH" > /dev/null
 
-  ./setup-and-run-docker.sh "$RESULT_PATH" "$BENCH_PATH" "$RUNS_NUMBER" "$TIME_BUDGET" &
+  ./setup-and-run-docker.sh "$RESULT_PATH" "$BENCH_PATH" "$RUNS_NUMBER" "$TIME_BUDGET"
 done
-
-wait

@@ -95,7 +95,7 @@
 
 
 	<logger name="org.evosuite" level="${log.level:-WARN}" />
-
+	<logger name="org.vorpal.research" level="${log.level:-WARN}" />
 
 	<!-- main root logger. Note: it is turned OFF to avoid SUT using it-->
 
@@ -108,9 +108,6 @@
 	<!-- for a specific logger, enables all the logging. this is useful when
 		we are debugging a particular class -->
 
-	<logger name="${log.target:-NOTHING}" level="ALL">
-		<appender-ref ref="STDOUT_${evosuite.log.appender:-MASTER}" />
-		<appender-ref ref="STDERR_${evosuite.log.appender:-MASTER}" />
-	</logger>
+<!--	<logger name="${log.target:-org.evosuite.ga.metaheuristics.mosa.DynaMOSA}" level="ALL"/>-->
 
 </configuration>

@@ -198,7 +198,7 @@ public class MethodDescriptor implements Comparable<MethodDescriptor>, Serializa
     }
 
     public MethodDescriptor getCopy(){
-        MethodDescriptor copy = new MethodDescriptor(method, methodName, className, inputParameterMatchers);
+        MethodDescriptor copy = new MethodDescriptor(method.copy(), methodName, className, inputParameterMatchers);
         copy.counter = this.counter;
         return copy;
     }
