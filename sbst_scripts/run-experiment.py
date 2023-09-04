@@ -38,17 +38,17 @@ def init_default_tool() -> str:
 def init_tempdir() -> str:
     result = tempfile.mkdtemp(prefix='experiment-results-')
     Path(result).chmod(0o777)
-    print(f'---- Experiment results will be in {result}')
+    print(f'---- Experiment results will be in {result}', flush=True)
     return result
 
 
 def run_experiment(tool: str, benchmarks: str, output: str, runs: int, timeouts: List[int]):
-    print('---- Run experiment')
+    print('---- Run experiment', flush=True)
     subprocess.run(
         ['./run-experiment.sh', tool, benchmarks, output, str(runs), *[str(i) for i in timeouts]],
         cwd=SCRIPTS_DIR
     )
-    print('---- Experiment finished')
+    print('---- Experiment finished', flush=True)
 
 
 @dataclass
@@ -178,7 +178,7 @@ def parse_raw_statistics_items(arr: List[RawStatisticsItem], file: Path):
 
 
 def build_csv(results_dir: str, output: str):
-    print('---- Run statistics collection')
+    print('---- Run statistics collection', flush=True)
 
     arr: List[RawStatisticsItem] = []
 
@@ -191,7 +191,7 @@ def build_csv(results_dir: str, output: str):
         w = DataclassWriter(f, arr, RawStatisticsItem)
         w.write()
 
-    print('---- Statistics collection finished')
+    print('---- Statistics collection finished', flush=True)
 
 
 def parse_args() -> argparse.Namespace:
