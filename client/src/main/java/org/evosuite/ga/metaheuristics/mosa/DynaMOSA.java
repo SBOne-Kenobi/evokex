@@ -54,9 +54,9 @@ public class DynaMOSA extends AbstractMOSA {
 	protected CrowdingDistance<TestChromosome> distance = new CrowdingDistance<>();
 
 	private int stallLen;
-	private int maxStallLen = 15;
+	private int maxStallLen = 8;
 	private boolean wasTargeted;
-	private int maxGenerateTests = -1;
+	private int maxGenerateTests = 15;
 
 	/**
 	 * Constructor based on the abstract class {@link AbstractMOSA}.

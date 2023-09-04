@@ -6,11 +6,11 @@ import org.vorpal.research.kex.trace.symbolic.PathClause
 import org.vorpal.research.kex.trace.symbolic.PersistentSymbolicState
 import org.vorpal.research.kex.trace.symbolic.protocol.ExecutionCompletedResult
 import org.vorpal.research.kfg.ir.Method
-import org.vorpal.research.kthelper.collection.dequeOf
+import java.util.*
 
 class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPathSelector, CandidatesObserver {
     private val tree = PathConditionTree(ctx, this)
-    private val _candidates = dequeOf<PathClauseVertex>()
+    private val _candidates = PriorityQueue<PathClauseVertex>(compareBy { it.state.clauses.size })
 
     lateinit var lastCandidate: PathClauseVertex
         private set
@@ -19,7 +19,7 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
 
     override suspend fun hasNext(): Boolean = _candidates.isNotEmpty()
 
-    override suspend fun next(): PersistentSymbolicState = _candidates.pollFirst()!!.also { lastCandidate = it }.state
+    override suspend fun next(): PersistentSymbolicState = _candidates.poll()!!.also { lastCandidate = it }.state
 
     override suspend fun addExecutionTrace(method: Method, result: ExecutionCompletedResult) {
         tree.addTrace(method, result.trace)

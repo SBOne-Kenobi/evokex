@@ -13,16 +13,14 @@ RUNS_NUMBER=$3
 TIME_BUDGET=$4
 
 TOOL_NAME=$(basename "$TOOL_HOME")
-RUN=run-and-collect.sh
+DOCKER_TOOL_HOME=/home/$TOOL_NAME
 
 docker run --rm -d \
-  -v "$TOOL_HOME":/home/"$TOOL_NAME" \
+  -v "$TOOL_HOME":"$DOCKER_TOOL_HOME" \
   -v "$BENCH_PATH":/var/benchmarks \
   --name="$TOOL_NAME" \
   -it junitcontest/infrastructure:latest > /dev/null
 
-docker cp "$RUN" "$TOOL_NAME":/usr/local/bin/ > /dev/null
-
-docker exec -w /home/"$TOOL_NAME" "$TOOL_NAME" "$RUN" "$TOOL_NAME" "$RUNS_NUMBER" "$TIME_BUDGET"
+docker exec -w "$DOCKER_TOOL_HOME" "$TOOL_NAME" ./sbst_scripts/run-and-collect.sh "$TOOL_NAME" "$RUNS_NUMBER" "$TIME_BUDGET"
 
 docker stop "$TOOL_NAME" > /dev/null
