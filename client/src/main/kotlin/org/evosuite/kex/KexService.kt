@@ -34,6 +34,7 @@ import org.vorpal.research.kfg.visitor.Pipeline
 import ru.spbstu.wheels.mapToArray
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.LinkOption
 import java.nio.file.Paths
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.div
@@ -119,11 +120,14 @@ object KexService {
 
     @JvmStatic
     fun init(mode: KexInitMode) {
-        logger.debug("Initialize KexService: {}", mode)
+        logger.info("Initialize KexService: {}", mode)
 
         if (isFirst) {
+            logger.info("Instrumenting code")
             kexConfig.initialize(RuntimeConfig, FileConfig("kex.ini"))
-            val instrumentedDir = kexConfig.instrumentedCodeDirectory.toUri().toURL()
+            kexConfig.instrumentedCodeDirectory.toFile().mkdirs()
+
+            val instrumentedDir = kexConfig.instrumentedCodeDirectory
             loader = KexClassLoader(arrayOf(instrumentedDir))
 
             instrument(mode)
@@ -132,7 +136,7 @@ object KexService {
         }
 
         initReflectionUtils(mode)
-        logger.debug("KexService initialized successfully")
+        logger.info("KexService initialized successfully")
     }
 
     private fun initReflectionUtils(mode: KexInitMode) {
@@ -140,7 +144,7 @@ object KexService {
             if (reflectionIsInited) return
             reflectionIsInited = true
 
-            logger.debug("Initialize reflection utils")
+            logger.info("Initialize reflection utils")
             val compileDir = kexConfig.compiledCodeDirectory.also {
                 it.toFile().mkdirs()
             }
@@ -152,7 +156,7 @@ object KexService {
             val pack = Properties.TARGET_CLASS.substringBeforeLast('.', "")
 
             if (mode == KexInitMode.MASTER_INIT) {
-                logger.debug("Compile reflection utils class")
+                logger.info("Compile reflection utils class")
                 reflectionUtils = ReflectionUtilsPrinter.reflectionUtils(pack)
                 val reflectionFile =
                     kexConfig.testcaseDirectory / pack.asmString / "${ReflectionUtilsPrinter.REFLECTION_UTILS_CLASS}.java"

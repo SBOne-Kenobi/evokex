@@ -10,4 +10,4 @@ JARS=$SCRIPT_DIR/sbst_scripts/jars
 CONF=/var/benchmarks/conf/benchmarks.list
 LOGS=$JARS/coverage_loggers
 
-java -jar "$JARS/coverage.jar" "$CONF" "$BASE_PATH" "$EVO" "$JARS/junit.jar" "$RUNS_NUMBER" "$LOGS"
+java -Xms16G -Xmx16G -jar "$JARS/coverage.jar" "$CONF" "$BASE_PATH" "$EVO" "$JARS/junit.jar" "$RUNS_NUMBER" "$LOGS"

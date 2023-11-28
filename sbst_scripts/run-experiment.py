@@ -11,7 +11,7 @@ from dataclass_csv import DataclassWriter
 
 SCRIPTS_DIR = Path(__file__).absolute().parent
 PROJECT_DIR = SCRIPTS_DIR.parent
-DEFAULT_TOOL_NAME = 'evokex-8-15'
+DEFAULT_TOOL_NAME = 'evokex-32-5-u'
 
 
 def init_default_tool() -> str:

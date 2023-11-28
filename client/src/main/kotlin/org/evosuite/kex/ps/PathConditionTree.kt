@@ -1,8 +1,11 @@
 package org.evosuite.kex.ps
 
 import org.vorpal.research.kex.ExecutionContext
-import org.vorpal.research.kex.state.predicate.*
-import org.vorpal.research.kex.state.term.ConstBoolTerm
+import org.vorpal.research.kex.state.predicate.DefaultSwitchPredicate
+import org.vorpal.research.kex.state.predicate.EqualityPredicate
+import org.vorpal.research.kex.state.predicate.Predicate
+import org.vorpal.research.kex.state.predicate.predicate
+import org.vorpal.research.kex.state.term.boolValue
 import org.vorpal.research.kex.state.term.numericValue
 import org.vorpal.research.kex.trace.symbolic.*
 import org.vorpal.research.kfg.ir.BasicBlock
@@ -10,6 +13,7 @@ import org.vorpal.research.kfg.ir.Method
 import org.vorpal.research.kfg.ir.value.IntConstant
 import org.vorpal.research.kfg.ir.value.Value
 import org.vorpal.research.kfg.ir.value.instruction.BranchInst
+import org.vorpal.research.kfg.ir.value.instruction.Instruction
 import org.vorpal.research.kfg.ir.value.instruction.SwitchInst
 import org.vorpal.research.kfg.ir.value.instruction.TableSwitchInst
 import org.vorpal.research.kthelper.assert.unreachable
@@ -47,6 +51,7 @@ class MethodEntryVertex(method: Method, entry: EntryVertex) : InnerVertex(entry.
 
 class PathClauseVertex(
     val pathClause: PathClause,
+    val nextExpectedInstruction: Instruction? = null,
     state: PersistentSymbolicState,
     parent: InnerVertex,
 ) : InnerVertex(state, parent, parent.method) {
@@ -66,9 +71,6 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
     override val nodes: Set<Vertex>
         get() = _nodes.toSet()
 
-    private val coveredChildren = mutableMapOf<InnerVertex, Int>()
-    private val InnerVertex.isCovered get() = coveredChildren.getOrDefault(this, 0) == size
-
     private val visited = mutableSetOf<InnerVertex>()
     private val InnerVertex.isVisited get() = this in visited
 
@@ -86,9 +88,9 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
                     var initialized = false
                     if (!prevVertex.isVisited || clause !in prevVertex) {
                         visited += prevVertex
-                        prevVertex.initBy(state, clause) // TODO: handle when it was covered
+                        prevVertex.initBy(state, clause)
                         initialized = true
-                    } else if (prevVertex.isCovered) return
+                    }
 
                     val currentVertex = prevVertex[clause]!!
                     if (!currentVertex.isVisited && !initialized) {
@@ -103,19 +105,6 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
         }
         if (!prevVertex.isVisited) {
             visited += prevVertex
-            markCovered(prevVertex)
-        } else {
-            assert(prevVertex.isCovered)
-        }
-    }
-
-    private fun markCovered(vertex: InnerVertex) {
-        var currentVertex = vertex
-        while (currentVertex.isCovered) {
-            currentVertex = currentVertex.parent as? InnerVertex ?: return
-            coveredChildren.compute(currentVertex) { _, old ->
-                old?.let { it + 1 } ?: 1
-            }
         }
     }
 
@@ -128,16 +117,37 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
         )
 
     private fun InnerVertex.initBy(state: PersistentSymbolicState, pathClause: PathClause) {
-        this[pathClause] = PathClauseVertex(pathClause, state.updateWith(pathClause), this).also {
+        this[pathClause] = PathClauseVertex(pathClause, pathClause.getNextInstruction(), state.updateWith(pathClause), this).also {
             _nodes += it
         }
 
         pathClause.getOtherBranches().forEach {
-            val vertex = PathClauseVertex(it, state.updateWith(it), this)
+            val vertex = PathClauseVertex(it, it.getNextInstruction(), state.updateWith(it), this)
             this[it] = vertex
             _nodes += vertex
             candidatesObserver.onNewCandidate(vertex)
         }
+    }
+
+    private val Predicate.rhvBool: Boolean
+        get() = (this as EqualityPredicate).rhv.boolValue
+
+    private fun PathClause.getNextInstruction(): Instruction? = when (type) {
+        PathClauseType.CONDITION_CHECK -> when (val inst = instruction) {
+            is BranchInst -> if (predicate.rhvBool) inst.trueSuccessor.first() else inst.falseSuccessor.first()
+            is SwitchInst -> when (val pred = predicate) {
+                is DefaultSwitchPredicate -> inst.default.first()
+                is EqualityPredicate -> inst.branches[ctx.values.getInt(pred.rhv.numericValue.toInt())]?.first()
+                else -> null
+            }
+            is TableSwitchInst -> when (val pred = predicate) {
+                is DefaultSwitchPredicate -> inst.default.first()
+                is EqualityPredicate -> inst.branches[pred.rhv.numericValue.toInt()].first()
+                else -> null
+            }
+            else -> null
+        }
+        else -> null
     }
 
     fun PathClause.getOtherBranches(): List<PathClause> = when (type) {
@@ -190,11 +200,7 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
 
     private fun Predicate.reverseBoolCond() = when (this) {
         is EqualityPredicate -> predicate(type, location) {
-            lhv equality !(rhv as ConstBoolTerm).value
-        }
-
-        is InequalityPredicate -> predicate(type, location) {
-            lhv inequality !(rhv as ConstBoolTerm).value
+            lhv equality !rhv.boolValue
         }
 
         else -> unreachable { log.error("Unexpected predicate in bool cond: $this") }
@@ -209,8 +215,6 @@ class PathConditionTree(private val ctx: ExecutionContext, private val candidate
                     if (vertex is InnerVertex) {
                         if (!vertex.isVisited) {
                             it.setColor("blue")
-                        } else if (vertex.isCovered) {
-                            it.setColor("green")
                         }
                     }
                 }

@@ -11,6 +11,7 @@ import org.vorpal.research.kex.trace.symbolic.SymbolicTraceBuilder
 import org.vorpal.research.kex.trace.symbolic.TraceCollectorProxy
 import org.vorpal.research.kfg.ir.Method
 import org.vorpal.research.kfg.ir.value.NameMapperContext
+import org.vorpal.research.kfg.ir.value.instruction.Instruction
 
 class KexStatementObserver(executionContext: ExecutionContext) : KexObserver(executionContext) {
 
@@ -20,8 +21,8 @@ class KexStatementObserver(executionContext: ExecutionContext) : KexObserver(exe
 
     private val collectors = mutableMapOf<Index, SymbolicTraceBuilder>()
 
-    val states: Map<Index, SymbolicState>
-        get() = collectors.mapValues { it.value.symbolicState }
+    val results: Map<Index, Pair<SymbolicState, List<Instruction>>>
+        get() = collectors.mapValues { it.value.symbolicState to it.value.trace }
 
     override fun beforeConstructor(statement: ConstructorStatement, scope: Scope) {
         collectors[statement to statement.constructor.constructor.kfgMethod] =

@@ -85,7 +85,13 @@
 		<reconnectionDelay>10000</reconnectionDelay>
 	</appender>
 
-
+	<appender name="STAT_LOGGER" class="ch.qos.logback.core.FileAppender">
+		<file>work-stat.log</file>
+		<append>true</append>
+		<encoder>
+			<pattern>%msg%n</pattern>
+		</encoder>
+	</appender>
 
 	<!-- Loggers  -->
 
@@ -93,6 +99,9 @@
 		<appender-ref ref="EVO_LOGGER_${evosuite.log.appender:-MASTER}" />
 	</logger>
 
+	<logger name="StatLogger" level="ALL" additivity="false">
+		<appender-ref ref="STAT_LOGGER" />
+	</logger>
 
 	<logger name="org.evosuite" level="${log.level:-WARN}" />
 

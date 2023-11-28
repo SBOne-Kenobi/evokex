@@ -18,4 +18,7 @@ echo "$TOOL_NAME |>>>>> Running metrics collection"
 #contest_compute_metrics.sh "results_${TOOL_NAME}_${TIME_BUDGET}" > metrics_log.txt 2> error_metrics_log.txt
 ./sbst_scripts/collect-coverage.sh "results_${TOOL_NAME}_${TIME_BUDGET}" "$RUNS_NUMBER" > metrics_log.txt 2> error_metrics_log.txt
 
+echo "$TOOL_NAME |>>>>> Cleaning"
+find . -name "instrumented" -type d -exec rm -r "{}" \; > /dev/null
+
 echo "$TOOL_NAME |>>>>> Done"
