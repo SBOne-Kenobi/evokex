@@ -20,8 +20,10 @@ examples/plot/
 examples/indi_plot/
 src/main/resources/log4j.properties
 *.jar
+!sbst_scripts/jars/*.jar
 *.orig
 master/dependency-reduced-pom.xml
 shaded/dependency-reduced-pom.xml
 standalone_runtime/dependency-reduced-pom.xml
 nbactions.xml
+temp/

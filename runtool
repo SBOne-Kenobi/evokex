@@ -1,0 +1,9 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(pwd)
+
+EVO=$SCRIPT_DIR/master/target/evosuite-master-1.1.0.jar
+TOOL=$SCRIPT_DIR/junitcontest/target/evosuite-junitcontest-1.1.0.jar
+LOG=$SCRIPT_DIR/sbst_loggers
+
+java -cp "$LOG":"$EVO":"$TOOL" -Dlogback.configurationFile="$LOG"/sbst_logback.xml -Duse_different_logback=sbst_logback.xml com.evosuite.junitcontest.Main

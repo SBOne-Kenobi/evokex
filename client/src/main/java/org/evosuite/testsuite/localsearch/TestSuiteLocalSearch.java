@@ -33,6 +33,7 @@ import org.evosuite.ga.FitnessFunction;
 import org.evosuite.ga.localsearch.LocalSearch;
 import org.evosuite.ga.localsearch.LocalSearchBudget;
 import org.evosuite.ga.localsearch.LocalSearchObjective;
+import org.evosuite.kex.KexTestGenerator;
 import org.evosuite.testcase.*;
 import org.evosuite.testcase.execution.ExecutionResult;
 import org.evosuite.testcase.execution.TestCaseExecutor;
@@ -51,13 +52,13 @@ import org.slf4j.LoggerFactory;
  * . This class applies local search on a test suite. Depending on the values
  * for properties <code>DSE_PROBABILITY</code> and <code>LOCAL_SEARCH_DSE</code>
  * one of the following three modes is applied:
- * 
+ *
  * - apply DSE on all test cases
- * 
+ *
  * - apply AVM on all test cases
- * 
+ *
  * - apply DSE on some tests and AVM on other tests
- * 
+ *
  * @author galeotti
  */
 public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
@@ -70,7 +71,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 *
 	 * @param individual
 	 *            an individual
-	 * 
+	 *
 	 * @param fitnessFunctions
 	 *            the list of fitness functions to be updated
 	 */
@@ -83,7 +84,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 
 	/**
 	 * Decides the kind of local search that will be applied to the Test Suite.
-	 * 
+	 *
 	 * @return a <code>TestSuiteLocalSearch</code> instance to use for local
 	 *         search
 	 */
@@ -94,23 +95,23 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * Before applying DSE we expand test cases, such that each primitive value
 	 * is used at only exactly one position as a parameter
-	 * 
+	 *
 	 * For example, given the following test case:
-	 * 
+	 *
 	 * <code>
 	 * foo0.bar(1);
 	 * foo1.bar(1);
 	 * </code>
-	 * 
+	 *
 	 * is rewritten as:
-	 * 
+	 *
 	 * <code>
 	 * int int0 = 1;
 	 * int int1 = 1;
 	 * foo0.bar(int0);
 	 * foo1.bar(int1);
 	 * </code>
-	 * 
+	 *
 	 * @param suite
 	 * @return
 	 */
@@ -152,21 +153,21 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 * Returns a new test case by explicitly declaring a variable for each used
 	 * primitive value. Repeated values are declared as different variables. For
 	 * example, given the following test case:
-	 * 
+	 *
 	 * <code>
 	 * foo0.bar(1);
 	 * foo1.bar(1);
 	 * </code>
-	 * 
+	 *
 	 * is rewritten as:
-	 * 
+	 *
 	 * <code>
 	 * int int0 = 1;
 	 * int int1 = 1;
 	 * foo0.bar(int0);
 	 * foo1.bar(int1);
 	 * </code>
-	 * 
+	 *
 	 * @param test
 	 *            the test to expand
 	 * @return the expanded test case
@@ -183,7 +184,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 * Ensure that all branches are executed twice For each branch such that
 	 * exists only one test case in the suite that covers that branch, it
 	 * creates a duplicate of that test case.
-	 * 
+	 *
 	 * By doing this, we avoid to incorrectly mark a new test case produced by
 	 * the local search as an improving test case because it simply executes
 	 * again a predicate.
@@ -243,7 +244,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * Returns the set of predicate indexes whose true branches were covered by
 	 * the suite
-	 * 
+	 *
 	 * @param suite
 	 * @return
 	 */
@@ -262,7 +263,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * Returns the set of the predicate indexes whose false branch were covered
 	 * by the test suite
-	 * 
+	 *
 	 * @param suite
 	 * @return the set of predicate indexes whose false branch were covered
 	 */
@@ -303,7 +304,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * Indicates if the fitness of the individual has improved with respected to
 	 * parameter <code>fitnessBefore</code>
-	 * 
+	 *
 	 * @param fitnessBefore
 	 *            the previous fitness of the individual
 	 * @param individual
@@ -322,13 +323,13 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 * Applies local search to the suite targeting the objective passed as
 	 * parameter. The type of local search will be decided according to the
 	 * <code>DSE_PROBABITY</code> and <code>LOCAL_SEARCH_DSE</code> properties.
-	 * 
+	 *
 	 * @param suite
 	 *            the test suite to apply local search on
-	 * 
+	 *
 	 * @param objective
 	 *            the local search objective
-	 * 
+	 *
 	 * @return true iff the test suite has improved.
 	 */
 	@Override
@@ -399,7 +400,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * This enumerate represents which type of local search will be applied on
 	 * the suite
-	 * 
+	 *
 	 * @author galeotti
 	 */
 	enum LocalSearchSuiteType {
@@ -422,7 +423,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 * Selects the type of local search according to the
 	 * <code>LOCAL_SEARCH_DSE</code> and the <code>DSE_PROBABILITY</code>
 	 * properties.
-	 * 
+	 *
 	 * @return the type of Local Search to be applied
 	 */
 	private static LocalSearchSuiteType chooseLocalSearchSuiteType() {
@@ -446,7 +447,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	/**
 	 * Decides the type of local search to be applied, and invokes the
 	 * corresponding local search procedure.
-	 * 
+	 *
 	 * @param suite
 	 *            the suite to optimise
 	 * @param objective
@@ -454,64 +455,71 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 	 */
 	private void applyLocalSearch(TestSuiteChromosome suite, LocalSearchObjective<TestSuiteChromosome> objective) {
 
-		final LocalSearchSuiteType localSearchType;
-		localSearchType = chooseLocalSearchSuiteType();
+//        TestCase newTest = (new KexTestGenerator(suite.getTestChromosomes(), () -> false)).generateTest(() -> false);
+//        if (newTest != null) {
+//            suite.addTest(newTest);
+//        }
+//        updateFitness(suite, objective.getFitnessFunctions());
+//        (new KexTestMutator()).mutateTest(suite);
 
-		/*
-		 * We make a copy of the original test cases before Local Search
-		 */
-		List<TestChromosome> originalTests = new ArrayList<>(suite.getTestChromosomes());
-
-		for (final TestChromosome test : originalTests) {
-
-			// If we have already tried local search before on this test
-			// without success, we reset all primitive values before trying
-			// again
-			if (test.hasLocalSearchBeenApplied()) {
-				TestCaseLocalSearch.randomizePrimitives(test.getTestCase());
-				updateFitness(suite, objective.getFitnessFunctions());
-			}
-
-			if (LocalSearchBudget.getInstance().isFinished()) {
-				logger.debug("Local search budget used up: " + Properties.LOCAL_SEARCH_BUDGET_TYPE);
-				break;
-			}
-			logger.debug("Local search budget not yet used up");
-
-			final double tossCoin = Randomness.nextDouble();
-			final boolean shouldApplyDSE = localSearchType == LocalSearchSuiteType.ALWAYS_DSE
-					|| (localSearchType == LocalSearchSuiteType.DSE_AND_AVM && tossCoin <= Properties.DSE_PROBABILITY);
-
-			/*
-			 * We create a cloned test case to play local search with it. This
-			 * resembles the deprecated ensureDoubleExecution
-			 */
-			TestChromosome clonedTest = test.clone();
-			suite.addTest(clonedTest);
-			final int lastIndex = suite.size() - 1;
-
-			final boolean improved;
-			if (shouldApplyDSE) {
-				improved = applyDSE(suite, lastIndex, clonedTest, objective);
-			} else {
-				improved = applyAVM(suite, lastIndex, clonedTest, objective);
-			}
-
-			if (improved) {
-				updateFitness(suite, objective.getFitnessFunctions());
-			} else {
-				// remove cloned test case if there was no improvement
-				suite.deleteTest(clonedTest);
-			}
-
-			test.setLocalSearchApplied(true);
-		}
+//        final LocalSearchSuiteType localSearchType;
+//        localSearchType = chooseLocalSearchSuiteType();
+//
+//        /*
+//         * We make a copy of the original test cases before Local Search
+//         */
+//        List<TestChromosome> originalTests = new ArrayList<>(suite.getTestChromosomes());
+//
+//        for (final TestChromosome test : originalTests) {
+//
+//            // If we have already tried local search before on this test
+//            // without success, we reset all primitive values before trying
+//            // again
+//            if (test.hasLocalSearchBeenApplied()) {
+//                TestCaseLocalSearch.randomizePrimitives(test.getTestCase());
+//                updateFitness(suite, objective.getFitnessFunctions());
+//            }
+//
+//            if (LocalSearchBudget.getInstance().isFinished()) {
+//                logger.debug("Local search budget used up: " + Properties.LOCAL_SEARCH_BUDGET_TYPE);
+//                break;
+//            }
+//            logger.debug("Local search budget not yet used up");
+//
+//            final double tossCoin = Randomness.nextDouble();
+//            final boolean shouldApplyDSE = localSearchType == LocalSearchSuiteType.ALWAYS_DSE
+//                    || (localSearchType == LocalSearchSuiteType.DSE_AND_AVM && tossCoin <= Properties.DSE_PROBABILITY);
+//
+//            /*
+//             * We create a cloned test case to play local search with it. This
+//             * resembles the deprecated ensureDoubleExecution
+//             */
+//            TestChromosome clonedTest = test.clone();
+//            suite.addTest(clonedTest);
+//            final int lastIndex = suite.size() - 1;
+//
+//            final boolean improved;
+//            if (shouldApplyDSE) {
+//                improved = applyDSE(suite, lastIndex, clonedTest, objective);
+//            } else {
+//                improved = applyAVM(suite, lastIndex, clonedTest, objective);
+//            }
+//
+//            if (improved) {
+//                updateFitness(suite, objective.getFitnessFunctions());
+//            } else {
+//                // remove cloned test case if there was no improvement
+//                suite.deleteTest(clonedTest);
+//            }
+//
+//            test.setLocalSearchApplied(true);
+//        }
 
 	}
 
 	/**
 	 * Applies AVM on the test case in the suite
-	 * 
+	 *
 	 * @param suite
 	 * @param testIndex
 	 * @param test
@@ -535,7 +543,7 @@ public class TestSuiteLocalSearch implements LocalSearch<TestSuiteChromosome> {
 
 	/**
 	 * Applies DSE on the test case of the suite
-	 * 
+	 *
 	 * @param suite
 	 * @param testIndex
 	 * @param test

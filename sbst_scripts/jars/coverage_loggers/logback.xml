@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (C) 2011,2012 Gordon Fraser, Andrea Arcuri and EvoSuite contributors
+	This file is part of EvoSuite. EvoSuite is free software: you can redistribute
+	it and/or modify it under the terms of the GNU Public License as published
+	by the Free Software Foundation, either version 3 of the License, or (at
+	your option) any later version. EvoSuite is distributed in the hope that
+	it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+	of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Public
+	License for more details. You should have received a copy of the GNU Public
+	License along with EvoSuite. If not, see <http://www.gnu.org/licenses/>. -->
+
+<!-- NOTE: ":-" is used for default values in case a variable is not defined
+	Here we configure the logs for both the master and client nodes. The client
+	nodes shouldn't print anything in their console, they should rather connect
+	to master through TCP. -->
+
+<configuration>
+
+    <appender name="STATS" class="ch.qos.logback.core.FileAppender">
+        <file>coverage-info.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>DENY</onMatch>
+            <onMismatch>ACCEPT</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>[MASTER] %d{HH:mm:ss.SSS} [%thread] %-5level %logger{0} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>[MASTER] %d{HH:mm:ss.SSS} [%thread] %-5level %logger{0} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="OFF">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="STDERR" />
+    </root>
+
+    <logger name="coverage-info" level="ALL" additivity="false">
+        <appender-ref ref="STATS" />
+    </logger>
+
+</configuration>

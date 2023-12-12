@@ -22,6 +22,8 @@ package org.evosuite;
 
 import org.evosuite.classpath.ClassPathHacker;
 import org.evosuite.junit.writer.TestSuiteWriterUtils;
+import org.evosuite.kex.KexInitMode;
+import org.evosuite.kex.KexService;
 import org.evosuite.result.TestGenerationResult;
 import org.evosuite.result.TestGenerationResultBuilder;
 import org.evosuite.rmi.ClientServices;
@@ -43,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * ClientProcess class.
  * </p>
- * 
+ *
  * @author Gordon Fraser
  * @author Andrea Arcuri
  */
@@ -70,6 +72,7 @@ public class ClientProcess {
 		JDKClassResetter.init();
 		Sandbox.setCheckForInitialization(Properties.SANDBOX);
 		MockFramework.enable();
+		KexService.init(KexInitMode.CLIENT_INIT);
 
 		if (TestSuiteWriterUtils.needToUseAgent() && (Properties.JUNIT_CHECK == Properties.JUnitCheckValues.TRUE || Properties.JUNIT_CHECK == Properties.JUnitCheckValues.OPTIONAL)) {
 			initializeToolJar();
@@ -119,7 +122,7 @@ public class ClientProcess {
 		 * initializer of BsdVirtualMachine does a  System.loadLibrary("attach"),
 		 * and for some reason that is executed twice if the agent is loaded
 		 * later in the search. Note: this does not affect the generated test
-		 * cases when run from Eclipse (for example). 
+		 * cases when run from Eclipse (for example).
 		 */
 
         /*
@@ -165,19 +168,19 @@ public class ClientProcess {
 	 * <p>
 	 * main
 	 * </p>
-	 * 
+	 *
 	 * @param args
 	 *            an array of {@link java.lang.String} objects.
 	 */
 	public static void main(String[] args) {
 
 		/*
-		 * important to have it in a variable, otherwise 
+		 * important to have it in a variable, otherwise
 		 * might be issues with following System.exit if successive
 		 * threads change it if this thread is still running
 		 */
 		boolean onThread = Properties.CLIENT_ON_THREAD;
-		
+
         if (args.length > 0) {
             identifier = args[0];
         } else {

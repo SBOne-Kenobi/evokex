@@ -38,6 +38,8 @@
         <module>plugins</module>
         <module>standalone_runtime</module>
         <module>shaded</module>
+        <module>kex</module>
+        <module>junitcontest</module>
     </modules>
 
     <prerequisites>

@@ -12,6 +12,11 @@
 	<artifactId>evosuite-client</artifactId>
 	<packaging>jar</packaging>
 
+    <properties>
+        <kotlin.version>1.8.21</kotlin.version>
+        <kotlin.code.style>official</kotlin.code.style>
+    </properties>
+
     <profiles>
         <profile>
             <id>java8</id>
@@ -28,6 +33,14 @@
     </profiles>
 
 	<dependencies>
+
+        <!-- Kex Modules -->
+
+        <dependency>
+            <groupId>org.vorpal.research</groupId>
+            <artifactId>kex-runner</artifactId>
+            <version>0.0.1</version>
+        </dependency>
 
 		<!-- EvoSuite Modules -->
 
@@ -140,6 +153,27 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>process-sources</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <sourceDirs>
+                                <source>src/main/kotlin</source>
+                                <source>target/generated-sources/annotations</source>
+                            </sourceDirs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- FIXME: this is just temporary to make Master tests compile. To remove once "com.examples..." is properly handled -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

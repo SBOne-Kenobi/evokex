@@ -203,6 +203,13 @@ public class TestSuiteGenerator {
 		}
 
 		TestSuiteChromosome testCases = generateTests();
+//        TestSuiteChromosome expandedCases = new TestSuiteChromosome();
+//        for (TestCase test : testCases.getTests()) {
+//            TestCaseExpander expander = new TestCaseExpander();
+//            TestCase newTest = expander.expandTestCase(test);
+//            expandedCases.addTest(newTest);
+//        }
+//        TestCase test = (new KexTestGenerator()).generateTest(expandedCases);
 
 		// As post process phases such as minimisation, coverage analysis, etc., may call getFitness()
 		// of each fitness function, which may try to update the Archive, in here we explicitly disable

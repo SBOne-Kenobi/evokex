@@ -76,6 +76,16 @@ public class EvoInvocationListener implements InvocationListener, Serializable {
         }
     }
 
+    public EvoInvocationListener copy() {
+        EvoInvocationListener other = new EvoInvocationListener(new GenericClass(retvalType));
+        other.active = this.active;
+        for (MethodDescriptor descriptor : map.values()) {
+            MethodDescriptor otherDescriptor = descriptor.getCopy();
+            other.map.put(otherDescriptor.getID(), otherDescriptor);
+        }
+        return other;
+    }
+
     /**
      *
      * @return a sorted list

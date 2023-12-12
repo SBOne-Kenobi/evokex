@@ -19,17 +19,21 @@
  */
 package org.evosuite.ga.metaheuristics.mosa;
 
+import kotlin.jvm.functions.Function0;
 import org.evosuite.Properties;
 import org.evosuite.ga.ChromosomeFactory;
 import org.evosuite.ga.comparators.OnlyCrowdingComparator;
 import org.evosuite.ga.metaheuristics.mosa.structural.MultiCriteriaManager;
 import org.evosuite.ga.operators.ranking.CrowdingDistance;
+import org.evosuite.kex.KexTestGenerator;
+import org.evosuite.testcase.TestCase;
 import org.evosuite.testcase.TestChromosome;
 import org.evosuite.utils.LoggingUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -44,11 +48,20 @@ public class DynaMOSA extends AbstractMOSA {
 	private static final long serialVersionUID = 146182080947267628L;
 
 	private static final Logger logger = LoggerFactory.getLogger(DynaMOSA.class);
+	private static final Logger statLogger = LoggerFactory.getLogger("StatLogger");
 
 	/** Manager to determine the test goals to consider at each generation */
 	protected MultiCriteriaManager goalsManager = null;
 
 	protected CrowdingDistance<TestChromosome> distance = new CrowdingDistance<>();
+
+	private int stallLen;
+	private int maxStallLen = 32;
+	private boolean wasTargeted;
+	private final int maxGenerateTests = 5;
+	private final long kexExecutionTimeout = 10000;
+	private final long kexGenerationTimeout = 10000;
+	private KexTestGenerator kexTestGenerator;
 
 	/**
 	 * Constructor based on the abstract class {@link AbstractMOSA}.
@@ -62,11 +75,72 @@ public class DynaMOSA extends AbstractMOSA {
 	/** {@inheritDoc} */
 	@Override
 	protected void evolve() {
+		List<TestChromosome> additional = Collections.emptyList();
+		if (stallLen > maxStallLen) {
+			logger.info("Run test generation using kex");
+			stallLen = 0;
+			wasTargeted = true;
+
+			additional = new ArrayList<>();
+
+			logger.debug("Constraints collection");
+			long startTime = System.currentTimeMillis();
+			List<TestChromosome> solutions = getSolutions();
+			statLogger.debug("Current solutions: {}", solutions.size());
+//			statLogger.debug("-----------------------");
+//			for (TestChromosome solution : solutions) {
+//				statLogger.debug(solution.toString());
+//				statLogger.debug("-----------------------");
+//			}
+			kexTestGenerator.collectTraces(
+					solutions,
+					() -> System.currentTimeMillis() - startTime > kexExecutionTimeout
+			);
+			long endExecutionTime = System.currentTimeMillis();
+
+			logger.debug("Start generation");
+			Function0<Boolean> stoppingCondition =
+					() -> System.currentTimeMillis() - endExecutionTime > kexGenerationTimeout;
+			int i = 0;
+			while (maxGenerateTests == -1 || i < maxGenerateTests) {
+				TestCase testCase = kexTestGenerator.generateTest(stoppingCondition);
+				if (testCase == null) {
+					break;
+				}
+				TestChromosome test = new TestChromosome();
+				test.setTestCase(testCase);
+				additional.add(test);
+				calculateFitness(test);
+				logger.debug("Covered goals: {}", testCase.getCoveredGoals().size());
+				i++;
+			}
+			long endTime = System.currentTimeMillis();
+			statLogger.debug("Test cases generated: {}", additional.size());
+//			statLogger.debug("---------------------");
+//			for (TestChromosome test: additional) {
+//				statLogger.debug(test.toString());
+//				statLogger.debug("----------------------");
+//			}
+
+			statLogger.debug("Kex generation time: {}", endTime - endExecutionTime);
+			statLogger.debug("Kex execution time: {}", endExecutionTime - startTime);
+			statLogger.debug("Kex iteration time: {}", endTime - startTime);
+
+			if (additional.isEmpty()) {
+				return;
+			}
+
+			List<TestChromosome> temp = additional;
+			additional = this.population;
+			this.population = temp;
+		}
+
 		// Generate offspring, compute their fitness, update the archive and coverage goals.
 		List<TestChromosome> offspringPopulation = this.breedNextGeneration();
 
 		// Create the union of parents and offspring
-		List<TestChromosome> union = new ArrayList<>(this.population.size() + offspringPopulation.size());
+		List<TestChromosome> union = new ArrayList<>(additional.size() + this.population.size() + offspringPopulation.size());
+		union.addAll(additional);
 		union.addAll(this.population);
 		union.addAll(offspringPopulation);
 
@@ -163,10 +237,51 @@ public class DynaMOSA extends AbstractMOSA {
 
 		// Evolve the population generation by generation until all gaols have been covered or the
 		// search budget has been consumed.
-		while (!isFinished() && this.goalsManager.getUncoveredGoals().size() > 0) {
+		stallLen = 0;
+		long startTime = System.currentTimeMillis();
+		int iterations = 0;
+		int kexIterations = 0;
+		int kexImproveIterations = 0;
+		kexTestGenerator = new KexTestGenerator();
+		while (!isFinished() && getNumberOfUncoveredGoals() > 0) {
+			wasTargeted = false;
+			int oldCoverage = getNumberOfCoveredGoals();
+
 			this.evolve();
+
+			int newCoverage = getNumberOfCoveredGoals();
+			if (wasTargeted) {
+				logger.debug("Old coverage: {}", oldCoverage);
+				logger.debug("New coverage: {}", newCoverage);
+				kexIterations++;
+				if (oldCoverage < newCoverage) {
+					statLogger.debug("Kex iteration improves coverage");
+					kexImproveIterations++;
+				} else {
+					statLogger.debug("Dump kex iteration");
+				}
+			}
+
+			if (oldCoverage == newCoverage) {
+				if (wasTargeted) {
+//					maxGenerateTests *= 2;
+					maxStallLen *= 2;
+				} else {
+					stallLen++;
+				}
+			} else {
+				stallLen = 0;
+			}
+
+			iterations++;
 			this.notifyIteration();
 		}
+		long endTime = System.currentTimeMillis();
+
+		statLogger.debug("Total iterations: {}", iterations);
+		statLogger.debug("Total time: {}", endTime - startTime);
+		statLogger.debug("Kex iterations: {}", kexIterations);
+		statLogger.debug("Kex improve iterations: {}", kexImproveIterations);
 
 		this.notifySearchFinished();
 	}

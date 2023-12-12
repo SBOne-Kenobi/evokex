@@ -30,6 +30,8 @@ import org.evosuite.classpath.ClassPathHacker;
 import org.evosuite.classpath.ClassPathHandler;
 import org.evosuite.classpath.ResourceList;
 import org.evosuite.instrumentation.BytecodeInstrumentation;
+import org.evosuite.kex.KexInitMode;
+import org.evosuite.kex.KexService;
 import org.evosuite.result.TestGenerationResult;
 import org.evosuite.result.TestGenerationResultBuilder;
 import org.evosuite.rmi.MasterServices;
@@ -54,7 +56,7 @@ public class TestGeneration {
 	
 	public static List<List<TestGenerationResult>> executeTestGeneration(Options options, List<String> javaOpts,
 			CommandLine line) {
-		
+
 		Strategy strategy = getChosenStrategy(javaOpts, line);
 
 		if (strategy == null) {
@@ -74,7 +76,6 @@ public class TestGeneration {
             Help.execute(options);
 			return results;
 		}
-
 
 		if (line.hasOption("class")) {
 			results.addAll(generateTests(strategy, line.getOptionValue("class"), javaOpts));
@@ -384,6 +385,8 @@ public class TestGeneration {
 		Properties.getInstance();// should force the load, just to be sure
 		Properties.TARGET_CLASS = target;
 		Properties.PROCESS_COMMUNICATION_PORT = port;
+
+		KexService.init(KexInitMode.MASTER_INIT);
 
         for (int i = 0; i < Properties.NUM_PARALLEL_CLIENTS; i++) {
             List<String> cmdLineClone = new ArrayList<>(cmdLine);

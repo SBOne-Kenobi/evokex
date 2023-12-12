@@ -114,7 +114,12 @@
 
 	<logger name="org.evosuite.shaded" level="OFF" />
 
-	<!-- for a specific logger, enables all the logging. this is useful when 
+	<logger name="org.vorpal.research" level="${log.level:-WARN}">
+		<appender-ref ref="STDOUT_${evosuite.log.appender:-MASTER}" />
+		<appender-ref ref="STDERR_${evosuite.log.appender:-MASTER}" />
+	</logger>
+
+	<!-- for a specific logger, enables all the logging. this is useful when
 		we are debugging a particular class -->
 
 	<logger name="${log.target:-NOTHING}" level="ALL" />
