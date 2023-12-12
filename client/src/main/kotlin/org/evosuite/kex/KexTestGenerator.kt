@@ -61,7 +61,9 @@ class KexTestGenerator {
                     KexService.execute(testCaseClone, observer)?.let {
                         observer.results.forEach { (key, value) ->
                             val (state, trace) = value
-                            if (state.isNotEmpty() && trace.first().parent.method.isTargetMethod) {
+                            if (state.isNotEmpty()
+                                && trace.first().parent.method.isTargetMethod
+                            ) {
                                 updateWithTrace(trace, state, key.method)
                             }
                         }

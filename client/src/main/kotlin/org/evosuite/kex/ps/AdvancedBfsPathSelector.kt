@@ -24,13 +24,17 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
     private val tree = PathConditionTree(ctx, this)
 
     private var needUpdate: Boolean = false
-    private val condensationGraph = CondensationGraph()
+//    private val condensationGraph = CondensationGraph()
 
-    private data class Candidate(val covered: Boolean, val fullyCovered: Boolean, val clause: PathClauseVertex)
+    private data class Candidate(
+        val covered: Boolean,
+//        val fullyCovered: Boolean,
+        val clause: PathClauseVertex
+    )
 
     private val _candidates = PriorityQueue(
         compareBy<Candidate> { it.covered }
-            .thenBy { it.fullyCovered }
+//            .thenBy { it.fullyCovered }
             .thenBy { it.clause.state.clauses.size * it.clause.multiplier }
     )
 
@@ -50,8 +54,8 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
     private val PathClauseVertex.instruction: Instruction
         get() = nextExpectedInstruction ?: pathClause.instruction
 
-    private val PathClauseVertex.isFullyCovered: Boolean
-        get() = condensationGraph.isFullyCovered(instruction)
+//    private val PathClauseVertex.isFullyCovered: Boolean
+//        get() = condensationGraph.isFullyCovered(instruction)
 
     override suspend fun isEmpty(): Boolean = _candidates.isEmpty()
 
@@ -70,84 +74,84 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
         if (!needUpdate) return
         needUpdate = false
 
-        condensationGraph.clear()
-        buildCondensationGraph()
-        condensationGraph.computeCoverageOnCondensationGraph()
+//        condensationGraph.clear()
+//        buildCondensationGraph()
+//        condensationGraph.computeCoverageOnCondensationGraph()
 
         val clauses = _candidates.map { it.clause }
         _candidates.clear()
         _candidates.addAll(clauses.map {
             Candidate(
                 instructionsGraph.isCovered(it.instruction),
-                it.isFullyCovered,
+//                it.isFullyCovered,
                 it
             )
         })
     }
 
-    private class CondensationGraph {
-        val components: MutableList<MutableList<Instruction>> = mutableListOf()
-        val instruction2Component = IdentityHashMap<Instruction, Int>()
-        val successors = HashMap<Int, MutableList<Int>>()
-        val covered = HashMap<Int, Boolean>()
-        val fullyCovered = HashMap<Int, Boolean>()
-
-        fun isFullyCovered(instruction: Instruction): Boolean {
-            val component = instruction2Component[instruction] ?: return true
-            return fullyCovered.getValue(component)
-        }
-
-        fun clear() {
-            components.clear()
-            instruction2Component.clear()
-            successors.clear()
-            covered.clear()
-            fullyCovered.clear()
-        }
-
-        fun computeCoverageOnCondensationGraph() {
-            components.indices.forEach {
-                if (it !in fullyCovered) {
-                    dfs(it)
-                }
-            }
-        }
-
-        private data class StackEntry(val component: Int, val children: List<Int>, var next: Int)
-
-        private fun dfs(entryPoint: Int) {
-            val stack = stackOf<StackEntry>()
-            stack.push(StackEntry(entryPoint, successors.getValue(entryPoint), 0))
-            loop@ while (stack.isNotEmpty()) {
-                val current = stack.peek()
-                if (current.next == 0) {
-                    if (!covered.getValue(current.component)) {
-                        fullyCovered[current.component] = false
-                    }
-                }
-                if (current.next < current.children.size) {
-                    val next = current.children[current.next]
-                    when (fullyCovered[next]) {
-                        true -> {}
-                        false -> fullyCovered.putIfAbsent(current.component, false)
-                        null -> {
-                            stack.push(StackEntry(next, successors.getValue(next), 0))
-                            continue@loop
-                        }
-                    }
-                    current.next++
-                } else {
-                    fullyCovered.putIfAbsent(current.component, true)
-                    stack.pop()
-                }
-            }
-        }
-    }
-
-    private fun buildCondensationGraph() {
-        val order = buildOrder()
-        collectComponents(order)
-    }
+//    private class CondensationGraph {
+//        val components: MutableList<MutableList<Instruction>> = mutableListOf()
+//        val instruction2Component = IdentityHashMap<Instruction, Int>()
+//        val successors = HashMap<Int, MutableList<Int>>()
+//        val covered = HashMap<Int, Boolean>()
+//        val fullyCovered = HashMap<Int, Boolean>()
+//
+//        fun isFullyCovered(instruction: Instruction): Boolean {
+//            val component = instruction2Component[instruction] ?: return true
+//            return fullyCovered.getValue(component)
+//        }
+//
+//        fun clear() {
+//            components.clear()
+//            instruction2Component.clear()
+//            successors.clear()
+//            covered.clear()
+//            fullyCovered.clear()
+//        }
+//
+//        fun computeCoverageOnCondensationGraph() {
+//            components.indices.forEach {
+//                if (it !in fullyCovered) {
+//                    dfs(it)
+//                }
+//            }
+//        }
+//
+//        private data class StackEntry(val component: Int, val children: List<Int>, var next: Int)
+//
+//        private fun dfs(entryPoint: Int) {
+//            val stack = stackOf<StackEntry>()
+//            stack.push(StackEntry(entryPoint, successors.getValue(entryPoint), 0))
+//            loop@ while (stack.isNotEmpty()) {
+//                val current = stack.peek()
+//                if (current.next == 0) {
+//                    if (!covered.getValue(current.component)) {
+//                        fullyCovered[current.component] = false
+//                    }
+//                }
+//                if (current.next < current.children.size) {
+//                    val next = current.children[current.next]
+//                    when (fullyCovered[next]) {
+//                        true -> {}
+//                        false -> fullyCovered.putIfAbsent(current.component, false)
+//                        null -> {
+//                            stack.push(StackEntry(next, successors.getValue(next), 0))
+//                            continue@loop
+//                        }
+//                    }
+//                    current.next++
+//                } else {
+//                    fullyCovered.putIfAbsent(current.component, true)
+//                    stack.pop()
+//                }
+//            }
+//        }
+//    }
+//
+//    private fun buildCondensationGraph() {
+//        val order = buildOrder()
+//        collectComponents(order)
+//    }
 
     private data class StackEntry(val instruction: Instruction, val children: List<Instruction>, var next: Int)
 
@@ -182,38 +186,38 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
         }
     }
 
-    private fun buildOrder(): List<Instruction> {
-        val order = mutableListOf<Instruction>()
-        fullDfs(instructionsGraph.getEntries(), getChildren = instructionsGraph::succ, onExit = order::add)
-        return order
-    }
+//    private fun buildOrder(): List<Instruction> {
+//        val order = mutableListOf<Instruction>()
+//        fullDfs(instructionsGraph.getEntries(), getChildren = instructionsGraph::succ, onExit = order::add)
+//        return order
+//    }
 
-    private fun collectComponents(order: List<Instruction>) {
-        fullDfs(
-            order.asReversed(),
-            getChildren = instructionsGraph::pred,
-            onNextEntry = { condensationGraph.components.add(mutableListOf()) },
-            onExit = {
-                condensationGraph.components.last().add(it)
-                condensationGraph.instruction2Component[it] = condensationGraph.components.lastIndex
-            }
-        )
-        condensationGraph.components.forEachIndexed { index, instructions ->
-            var covered = true
-            val succ = mutableSetOf<Int>()
-            instructions.forEach { instruction ->
-                covered = covered && instructionsGraph.isCovered(instruction)
-                instructionsGraph.succ(instruction).forEach {
-                    val component = condensationGraph.instruction2Component.getValue(it)
-                    if (component != index) {
-                        succ += component
-                    }
-                }
-            }
-            condensationGraph.covered[index] = covered
-            condensationGraph.successors[index] = succ.toMutableList()
-        }
-    }
+//    private fun collectComponents(order: List<Instruction>) {
+//        fullDfs(
+//            order.asReversed(),
+//            getChildren = instructionsGraph::pred,
+//            onNextEntry = { condensationGraph.components.add(mutableListOf()) },
+//            onExit = {
+//                condensationGraph.components.last().add(it)
+//                condensationGraph.instruction2Component[it] = condensationGraph.components.lastIndex
+//            }
+//        )
+//        condensationGraph.components.forEachIndexed { index, instructions ->
+//            var covered = true
+//            val succ = mutableSetOf<Int>()
+//            instructions.forEach { instruction ->
+//                covered = covered && instructionsGraph.isCovered(instruction)
+//                instructionsGraph.succ(instruction).forEach {
+//                    val component = condensationGraph.instruction2Component.getValue(it)
+//                    if (component != index) {
+//                        succ += component
+//                    }
+//                }
+//            }
+//            condensationGraph.covered[index] = covered
+//            condensationGraph.successors[index] = succ.toMutableList()
+//        }
+//    }
 
     override suspend fun addExecutionTrace(method: Method, result: ExecutionCompletedResult) {
         tree.addTrace(method, result.trace)
@@ -231,7 +235,7 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
     override fun onNewCandidate(candidate: PathClauseVertex) {
         _candidates += Candidate(
             instructionsGraph.isCovered(candidate.instruction),
-            candidate.isFullyCovered,
+//            candidate.isFullyCovered,
             candidate
         )
     }
@@ -248,7 +252,7 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
     override fun onCandidateInvalidate(candidate: PathClauseVertex) {
         _candidates -= Candidate(
             instructionsGraph.isCovered(candidate.instruction),
-            candidate.isFullyCovered,
+//            candidate.isFullyCovered,
             candidate
         )
     }
@@ -261,9 +265,9 @@ class AdvancedBfsPathSelector(override val ctx: ExecutionContext) : ConcolicPath
 
         private fun createView(instruction: Instruction, name: String) =
             GraphView(name, "${instruction.parent.method.validName}#${instruction.print().replace("\"", "")}") {
-                if (condensationGraph.isFullyCovered(instruction)) {
+                /* if (condensationGraph.isFullyCovered(instruction)) {
                     it.setColor("green")
-                } else if (instructionsGraph.isCovered(instruction)) {
+                } else */ if (instructionsGraph.isCovered(instruction)) {
                     it.setColor("yellow")
                 }
             }

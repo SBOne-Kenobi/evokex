@@ -103,8 +103,11 @@ def skip(f: TextIO, n: int):
 
 
 def parse_coverage_info(f: TextIO, name: str) -> tuple[str, str, str]:
-    covered, total, ratio = re.search(fr'^(\d+) of (\d+) {name} covered = (\d+\.\d+)%$', f.readline().strip()).groups()
-    return covered, total, ratio
+    try:
+        covered, total, ratio = re.search(fr'^(\d+) of (\d+) {name} covered = (\d+\.\d+)%$', f.readline().strip()).groups()
+        return covered, total, ratio
+    except:
+        return '0', '0', '100.00'
 
 
 def parse_raw_statistics_items(arr: List[RawStatisticsItem], file: Path):

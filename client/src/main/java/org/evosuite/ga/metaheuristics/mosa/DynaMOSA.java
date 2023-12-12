@@ -59,8 +59,8 @@ public class DynaMOSA extends AbstractMOSA {
 	private int maxStallLen = 32;
 	private boolean wasTargeted;
 	private final int maxGenerateTests = 5;
-	private final long kexExecutionTimeout = 5000;
-	private final long kexGenerationTimeout = 5000;
+	private final long kexExecutionTimeout = 10000;
+	private final long kexGenerationTimeout = 10000;
 	private KexTestGenerator kexTestGenerator;
 
 	/**
